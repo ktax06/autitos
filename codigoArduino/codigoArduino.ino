@@ -1,9 +1,9 @@
 #include <WiFi.h>
-#include <WebSocketsClient.h> // Usamos la librer铆a para WebSocket
-#include <ArduinoJson.h> // Librer铆a para manejo de JSON
-#include "esp_camera.h" // Librer铆a para la c谩mara ESP32
-#include "base64.h" // Librer铆a para codificar im谩genes a Base64
-#include <driver/ledc.h> // Librer铆a para PWM
+#include <WebSocketsClient.h> // Usamos la librería para WebSocket
+#include <ArduinoJson.h> // Librería para manejo de JSON
+#include "esp_camera.h" // Librería para la cámara ESP32
+#include "base64.h" // Librería para codificar imágenes a Base64
+#include <driver/ledc.h> // Librería para PWM
 
 #define LEDC_RESOLUTION 8  // 8 bits = valores de 0-255
 
@@ -17,7 +17,7 @@ const char* host = "192.168.47.159"; // IP del servidor WebSocket
 const uint16_t port = 3000;
 const char* path = "/ws";
 
-//Configuraci贸n de c谩mara
+//Configuración de cámara
 void startCamera() {
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -53,7 +53,7 @@ void startCamera() {
 
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
-    Serial.printf("Error iniciando c谩mara: 0x%x", err);
+    Serial.printf("Error iniciando cámara: 0x%x", err);
     return;
   }
 }
@@ -70,7 +70,7 @@ void sendImage() {
   esp_camera_fb_return(fb);
 
   // JSON con tipo imagen
-  DynamicJsonDocument doc(200000); // cuidado con el tama帽o
+  DynamicJsonDocument doc(200000); // cuidado con el tamaño
   doc["type"] = "image";
   doc["value"] = imageBase64;
 
@@ -118,7 +118,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
   }
 }
 
-// Configuraci贸n de motores
+// Configuración de motores
 #define ENA 12
 #define IN1 14
 #define IN2 27
@@ -136,7 +136,7 @@ void setupMotors() {
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
 
-  // Ahora, adjuntamos los pines para PWM (ajustando frecuencia y resoluci贸n)
+  // Ahora, adjuntamos los pines para PWM (ajustando frecuencia y resolución)
   ledcAttach(ENA, CHANNEL_A, LEDC_RESOLUTION );  // Asocia el pin ENA al canal A
   ledcWrite(CHANNEL_A, 5000);  // Frecuencia 5kHz
 
@@ -154,7 +154,7 @@ void moveForward() {
   digitalWrite(IN2, LOW);
   digitalWrite(IN3, HIGH);
   digitalWrite(IN4, LOW);
-  setSpeed(200); // Ajusta la velocidad aqu铆
+  setSpeed(200); // Ajusta la velocidad aquí
 }
 
 void moveBackward() {
@@ -193,7 +193,7 @@ void setup() {
   Serial.begin(115200);
   Serial.println("Iniciando conexión Wi-Fi...");
 
-  // Conexi贸n WiFi
+  // Conexión WiFi
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -204,7 +204,7 @@ void setup() {
 
   startCamera();
 
-  // Configuraci贸n WebSocket
+  // Configuración WebSocket
   webSocket.begin(host, port, path);
   webSocket.onEvent(webSocketEvent);
   webSocket.setReconnectInterval(5000);
