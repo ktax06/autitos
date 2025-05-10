@@ -4,6 +4,7 @@
 #include "esp_camera.h" // Librería para la cámara ESP32
 #include "base64.h" // Librería para codificar imágenes a Base64
 #include <driver/ledc.h> // Librería para PWM
+#include <ESPmDNS.h>
 
 #define LEDC_RESOLUTION 8  // 8 bits = valores de 0-255
 
@@ -194,13 +195,28 @@ void setup() {
   Serial.println("Iniciando conexión Wi-Fi...");
 
   // Conexión WiFi
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("WiFi conectado");
-  Serial.println(WiFi.localIP());
+  // WiFi.begin(ssid, password);
+  // while (WiFi.status() != WL_CONNECTED) {
+  //   delay(500);
+  //   Serial.print(".");
+  // }
+  // Serial.println("WiFi conectado");
+  // Serial.println(WiFi.localIP());
+
+  // // Wifi con access point
+  // Serial.println("Configurando Punto de Acceso...");
+
+  // WiFi.softAP(ssidAP, passwordAP);
+
+  // IPAddress IP = WiFi.softAPIP();
+  // Serial.print("Dirección IP del Punto de Acceso: ");
+  // Serial.println(IP);
+
+  // // Opcional: Configurar un nombre de host para el ESP32
+  // if (!MDNS.begin("esp32-ap")) {
+  //   Serial.println("Error al configurar mDNS!");
+  // }
+  // Serial.println("Nombre de host mDNS: esp32-ap.local");
 
   startCamera();
 
