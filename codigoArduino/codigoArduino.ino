@@ -7,7 +7,6 @@
 #include <WebServer.h>
 #include <WebSocketsServer.h>
 
-#define LEDC_RESOLUTION 8  // 8 bits = valores de 0-255
 
 //WiFi
 const char* ssid = "Casa1";
@@ -49,66 +48,6 @@ void handleRoot() {
   server.send(200, "text/plain", "¡Hola desde el servidor HTTP del ESP32!");
 }
 
-//Configuración de cámara
-void startCamera() {
-  camera_config_t config;
-  config.ledc_channel = LEDC_CHANNEL_0;
-  config.ledc_timer = LEDC_TIMER_0;
-  config.pin_d0 = 5;
-  config.pin_d1 = 18;
-  config.pin_d2 = 19;
-  config.pin_d3 = 21;
-  config.pin_d4 = 36;
-  config.pin_d5 = 39;
-  config.pin_d6 = 34;
-  config.pin_d7 = 35;
-  config.pin_xclk = 0;
-  config.pin_pclk = 22;
-  config.pin_vsync = 25;
-  config.pin_href = 23;
-  config.pin_sscb_sda = 26;
-  config.pin_sscb_scl = 27;
-  config.pin_pwdn = 32;
-  config.pin_reset = -1;
-  config.xclk_freq_hz = 20000000;
-  config.pixel_format = PIXFORMAT_JPEG;
-
-  if (psramFound()) {
-    config.frame_size = FRAMESIZE_QVGA;
-    config.jpeg_quality = 12;
-    config.fb_count = 1;
-  } else {
-    config.frame_size = FRAMESIZE_QVGA;
-    config.jpeg_quality = 12;
-    config.fb_count = 1;
-  }
-
-  esp_err_t err = esp_camera_init(&config);
-  if (err != ESP_OK) {
-    Serial.printf("Error iniciando cámara: 0x%x", err);
-    return;
-  }
-}
-
-//Enviar imagen al servidor
-void sendImage() {
-  camera_fb_t * fb = esp_camera_fb_get();
-  if (!fb) {
-    Serial.println("Error capturando imagen");
-    return;
-  }
-
-  String imageBase64 = base64::encode(fb->buf, fb->len);
-  esp_camera_fb_return(fb);
-
-  // JSON con tipo imagen
-  DynamicJsonDocument doc(200000); // cuidado con el tamaño
-  doc["type"] = "image";
-  doc["value"] = imageBase64;
-
-  String output;
-  serializeJson(doc, output);
-}
 
 //Recibir comando
 void handleCommand(const String& cmd) {
@@ -145,13 +84,6 @@ void setupMotors() {
   pinMode(IN2, OUTPUT);
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
-
-  // Ahora, adjuntamos los pines para PWM (ajustando frecuencia y resolución)
-  ledcAttach(ENA, CHANNEL_A, LEDC_RESOLUTION );  // Asocia el pin ENA al canal A
-  ledcWrite(CHANNEL_A, 5000);  // Frecuencia 5kHz
-
-  ledcAttach(ENB, CHANNEL_B, LEDC_RESOLUTION);  // Asocia el pin ENB al canal B
-  ledcWrite(CHANNEL_B, 5000);  // Frecuencia 5kHz
 }
 
 void setSpeed(uint8_t speed) {
@@ -238,20 +170,9 @@ void setup() {
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
   Serial.println("Servidor WebSocket iniciado en el puerto 81");
-
-
-  startCamera();
-
-  setupMotors();  // Inicializar motores
 }
 
 void loop() {
   webSocket.loop();
   server.handleClient();
-
-  static unsigned long lastImageTime = 0;
-  if (millis() - lastImageTime > 300) { // cada 300ms
-    sendImage();
-    lastImageTime = millis();
-  }
 }

@@ -124,11 +124,16 @@
         </button>
       </div>
     </div>
+
+    <!-- Componente WebSocket (invisible) -->
+    <ESP32WebSocket ref="webSocketComponent" />
+    
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, onBeforeUnmount} from 'vue'
+import ESP32WebSocket from '~/components/websocket.vue'
 
 
 const flashOn = ref(false)
@@ -140,14 +145,15 @@ const connectionStatus = ref('')
 const searching = ref(false)
 const searchCompleted = ref(false)
 const foundDevices = ref([])
-let socket = null
+const webSocketComponent = ref(null)
 
 const currentCar = ref({ id: 1, name: 'Mi Auto ESP32' }) 
 const availableCars = ref([]) //rellénalo desde API o backend
 
 const toggleFlash = () => {
   flashOn.value = !flashOn.value
-  sendCommand(flashOn.value ? 'FLASH_ON' : 'FLASH_OFF')
+  webSocketComponent.value.sendMessage(flashOn.value ? 'FLASH_ON' : 'FLASH_OFF');
+  console.log("Flash toggled:", flashOn.value);
 }
 
 const selectCar = (car) => {
@@ -164,31 +170,23 @@ const connectToESP = async (ip = null) => {
 
   try {
     connectionStatus.value = 'Conectando...'
-    socket?.close()
-
-    socket = new WebSocket(`ws://${targetIp}:3000/ws`)
-
-    socket.onopen = () => {
-      connectionStatus.value = 'Conectado'
-      cameraUrl.value = `http://${targetIp}:81/stream`
-      ipModalOpen.value = false
+    
+    // Desconectar el WebSocket existente
+    if (webSocketComponent.value) {
+      webSocketComponent.value.disconnectWebSocket()
     }
-
-    socket.onmessage = (event) => {
-      const msg = JSON.parse(event.data)
-      // fluo de datos con imagen
-      //if (msg.type === 'image') {
-      //  console.log('Imagen recibida')
-      //}
-    }
-
-    socket.onclose = () => {
-      connectionStatus.value = 'Desconectado'
-    }
-
-    socket.onerror = () => {
-      connectionStatus.value = 'Error de conexión'
-    }
+    
+    // Actualizar URL de la cámara
+    cameraUrl.value = `http://${targetIp}:81/stream`
+    
+    // Crear una nueva conexión WebSocket con el componente
+    webSocketComponent.value.connectWebSocket(`ws://${targetIp}:81/`)
+    
+    // Escuchar eventos desde el componente WebSocket
+    // Esto se manejará automáticamente por el componente
+    
+    connectionStatus.value = 'Conectado'
+    ipModalOpen.value = false
 
   } catch (err) {
     connectionStatus.value = 'Error al conectar'
