@@ -209,14 +209,18 @@ const scanNetwork = async () => {
     const ip = baseIp + i
     promises.push(
       fetch(`http://${ip}:81/`, { mode: 'no-cors' })
-        .then(() => foundDevices.value.push(ip))
+        .then(() => foundDevices.value.push(ip) && console.log(`Dispositivo encontrado en ${ip}`))
+      
         .catch(() => {}) // Silencia errores
     )
+    
   }
+  
 
   await Promise.all(promises)
   searching.value = false
   searchCompleted.value = true
+
 }
 
 const sendCommand = (cmd) => {
