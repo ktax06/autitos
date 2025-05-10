@@ -1,22 +1,53 @@
 #include <WiFi.h>
-#include <WebSocketsClient.h> // Usamos la librería para WebSocket
 #include <ArduinoJson.h> // Librería para manejo de JSON
 #include "esp_camera.h" // Librería para la cámara ESP32
 #include "base64.h" // Librería para codificar imágenes a Base64
 #include <driver/ledc.h> // Librería para PWM
 #include <ESPmDNS.h>
+#include <WebServer.h>
+#include <WebSocketsServer.h>
 
 #define LEDC_RESOLUTION 8  // 8 bits = valores de 0-255
 
 //WiFi
-const char* ssid = "POCO X3 NFC";
-const char* password = "11111111";
+const char* ssid = "Casa1";
+const char* password = "argentina";
 
-//WebSocket
-WebSocketsClient webSocket;
-const char* host = "192.168.47.159"; // IP del servidor WebSocket
-const uint16_t port = 3000;
-const char* path = "/ws";
+//WebSocket Server
+WebServer server(80);
+WebSocketsServer webSocket = WebSocketsServer(81); // Puerto para WebSocket
+
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+  switch (type) {
+    case WStype_DISCONNECTED:
+      Serial.printf("[%u] Desconectado!\n", num);
+      break;
+    case WStype_CONNECTED: {
+      IPAddress ip = webSocket.remoteIP(num);
+      Serial.printf("[%u] Conectado desde %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
+      // Enviar un mensaje de bienvenida al cliente
+      webSocket.sendTXT(num, "¡Hola desde el ESP32 WebSocket!");
+    }
+    break;
+    case WStype_TEXT:
+      Serial.printf("[%u] Recibido texto: %s\n", num, payload);
+      // Aquí puedes procesar el mensaje recibido y enviar una respuesta si es necesario
+      webSocket.sendTXT(num, "Mensaje recibido por el ESP32: " + String((char *)payload));
+      break;
+    case WStype_BIN:
+      Serial.printf("[%u] Recibidos %u bytes binarios\n", num, length);
+      // Puedes manejar datos binarios aquí si es necesario
+      // webSocket.sendBIN(num, payload, length);
+      break;
+    case WStype_PONG:
+      Serial.printf("[%u] Recibido PONG\n", num);
+      break;
+  }
+}
+
+void handleRoot() {
+  server.send(200, "text/plain", "¡Hola desde el servidor HTTP del ESP32!");
+}
 
 //Configuración de cámara
 void startCamera() {
@@ -77,8 +108,6 @@ void sendImage() {
 
   String output;
   serializeJson(doc, output);
-
-  webSocket.sendTXT(output);
 }
 
 //Recibir comando
@@ -96,26 +125,6 @@ void handleCommand(const String& cmd) {
     turnRight();
   } else if (cmd == "stop") {
     stopMotors();
-  }
-}
-
-//Evento WebSocket
-void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
-  switch (type) {
-    case WStype_CONNECTED:
-      Serial.println("Conectado al WebSocket");
-      break;
-    case WStype_DISCONNECTED:
-      Serial.println("Desconectado del WebSocket");
-      break;
-    case WStype_TEXT:
-      Serial.println("Mensaje recibido");
-      DynamicJsonDocument doc(512);
-      DeserializationError err = deserializeJson(doc, payload);
-      if (!err && doc["type"] == "command") {
-        handleCommand(doc["value"].as<String>());
-      }
-      break;
   }
 }
 
@@ -195,13 +204,15 @@ void setup() {
   Serial.println("Iniciando conexión Wi-Fi...");
 
   // Conexión WiFi
-  // WiFi.begin(ssid, password);
-  // while (WiFi.status() != WL_CONNECTED) {
-  //   delay(500);
-  //   Serial.print(".");
-  // }
-  // Serial.println("WiFi conectado");
-  // Serial.println(WiFi.localIP());
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("Conectado a WiFi");
+  Serial.print("Dirección IP: ");
+  Serial.println(WiFi.localIP());
 
   // // Wifi con access point
   // Serial.println("Configurando Punto de Acceso...");
@@ -218,18 +229,25 @@ void setup() {
   // }
   // Serial.println("Nombre de host mDNS: esp32-ap.local");
 
-  startCamera();
+  // Iniciar el servidor HTTP (opcional, pero útil para pruebas)
+  server.on("/", handleRoot);
+  server.begin();
+  Serial.println("Servidor HTTP iniciado.");
 
-  // Configuración WebSocket
-  webSocket.begin(host, port, path);
+  // Iniciar el servidor WebSocket
+  webSocket.begin();
   webSocket.onEvent(webSocketEvent);
-  webSocket.setReconnectInterval(5000);
+  Serial.println("Servidor WebSocket iniciado en el puerto 81");
+
+
+  startCamera();
 
   setupMotors();  // Inicializar motores
 }
 
 void loop() {
   webSocket.loop();
+  server.handleClient();
 
   static unsigned long lastImageTime = 0;
   if (millis() - lastImageTime > 300) { // cada 300ms
