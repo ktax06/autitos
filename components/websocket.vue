@@ -2,7 +2,6 @@
 import { onMounted, onUnmounted, ref } from 'vue';
 
 const websocket = ref(null);
-const messages = ref([]);
 
 onMounted(() => {
   connectWebSocket();
@@ -42,6 +41,7 @@ const disconnectWebSocket = () => {
 const sendMessage = (message) => {
   if (websocket.value && websocket.value.readyState === WebSocket.OPEN && message) {
     websocket.value.send(message);
+    console.log('Mensaje enviado:', message);
   }
 };
 
