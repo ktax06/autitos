@@ -1,5 +1,5 @@
 #include <WiFi.h>
-#include <ArduinoJson.h> // Librería para manejo de JSON
+#include <Arduino_JSON.h>
 #include <WebServer.h>
 #include <WebSocketsServer.h>
 #include "esp_camera.h"
@@ -328,22 +328,21 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
     case WStype_TEXT: {
       Serial.printf("[%u] Texto recibido: %s\n", num, payload);
       
-      // Procesar comandos JSON
-      DynamicJsonDocument doc(1024);
-      DeserializationError error = deserializeJson(doc, payload, length);
+      // Convertir el payload a String para usar con Arduino_JSON
+      String jsonString = String((char *)payload);
+      JSONVar doc = JSON.parse(jsonString);
       
-      if (error) {
-        Serial.print("deserializeJson() falló: ");
-        Serial.println(error.c_str());
+      if (JSON.typeof(doc) == "undefined") {
+        Serial.println("parseJSON() falló");
         return;
       }
       
       // Verificar si es un comando
-      if (doc.containsKey("value")) {
-        String command = doc["value"].as<String>();
-        int speed = doc.containsKey("speed") ? doc["speed"].as<int>() : 50;  // Default 50% si no se especifica
-        int turn = doc.containsKey("turn") ? doc["turn"].as<int>() : 70;     // Default 70% si no se especifica
-        
+      if (doc.hasOwnProperty("value")) {
+        String command = (const char*) doc["value"];
+        int speed = doc.hasOwnProperty("speed") ? int(doc["speed"]) : 50;
+        int turn = doc.hasOwnProperty("turn") ? int(doc["turn"]) : 70;
+
         // Procesar el comando
         if (command == "FORWARD") {
           moveForward(speed);
@@ -366,7 +365,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
         else if (command == "FLASH_OFF") {
           turnOffFlash();
         }
-        
+
         // Enviar respuesta con el estado actual
         String statusMsg = "{\"status\":\"ok\", \"direction\":\"" + currentDirection + "\", \"speed\":" + String(currentSpeed) + "}";
         webSocket.broadcastTXT(statusMsg);
