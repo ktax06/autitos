@@ -7,11 +7,38 @@
   >
     <div 
       ref="joystickHandle" 
-      class="joystick-handle w-16 h-16 bg-indigo-500 rounded-full absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 cursor-grab shadow-md"
+      class="joystick-handle w-16 h-16 bg-indigo-500 rounded-full absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 cursor-grab shadow-md"
       :style="{ 
         transform: `translate(${position.x}px, ${position.y}px)` 
       }"
     ></div>
+    
+    <!-- Indicadores de dirección -->
+    <div class="absolute inset-0 pointer-events-none">
+      <!-- Adelante -->
+      <div class="absolute top-3 left-1/2 -translate-x-1/2 w-6 h-6 flex items-center justify-center"
+           :class="{'text-green-400': normalizedPosition.y < -0.3, 'text-gray-500': normalizedPosition.y >= -0.3}">
+        <span class="transform rotate-180">▼</span>
+      </div>
+      
+      <!-- Atrás -->
+      <div class="absolute bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 flex items-center justify-center"
+           :class="{'text-green-400': normalizedPosition.y > 0.3, 'text-gray-500': normalizedPosition.y <= 0.3}">
+        <span>▼</span>
+      </div>
+      
+      <!-- Izquierda -->
+      <div class="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center"
+           :class="{'text-green-400': normalizedPosition.x < -0.3, 'text-gray-500': normalizedPosition.x >= -0.3}">
+        <span class="transform rotate-90">▼</span>
+      </div>
+      
+      <!-- Derecha -->
+      <div class="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center"
+           :class="{'text-green-400': normalizedPosition.x > 0.3, 'text-gray-500': normalizedPosition.x <= 0.3}">
+        <span class="transform -rotate-90">▼</span>
+      </div>
+    </div>
   </div>
 </template>
 

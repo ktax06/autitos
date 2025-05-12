@@ -14,8 +14,8 @@
         </button>
 
         <!-- Joystick -->
-        <div class="w-20 h-58">
-          <JoystickComponent />
+        <div class="w-40 h-40">
+          <JoystickComponent @move="handleJoystickMove" />
         </div>
 
         <!-- Botón Cambiar Auto -->
@@ -152,8 +152,7 @@ const availableCars = ref([]) //rellénalo desde API o backend
 
 const toggleFlash = () => {
   flashOn.value = !flashOn.value
-  webSocketComponent.value.sendMessage(flashOn.value ? 'FLASH_ON' : 'FLASH_OFF');
-  console.log("Flash toggled:", flashOn.value);
+  sendCommand(flashOn.value ? 'FLASH_ON' : 'FLASH_OFF')
 }
 
 const selectCar = (car) => {
@@ -221,16 +220,92 @@ const scanNetwork = async () => {
 
 }
 
-const sendCommand = (cmd) => {
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify({ type: 'command', value: cmd }))
+const sendCommand = (cmd, params = {}) => {
+  if (webSocketComponent.value) {
+    webSocketComponent.value.sendMessage(JSON.stringify({ 
+      type: 'command', 
+      value: cmd,
+      ...params
+    }))
   } else {
-    console.warn('WebSocket no conectado')
+    console.warn('Componente WebSocket no inicializado')
+  }
+}
+
+// Manejo del joystick
+const joystickThreshold = 0.15; // Umbral para evitar movimientos mínimos
+const joystickCommand = ref('STOP');
+const joystickTimer = ref(null);
+
+const handleJoystickMove = (position) => {
+  // Detener el temporizador anterior si existe
+  if (joystickTimer.value) {
+    clearTimeout(joystickTimer.value);
+  }
+  
+  // Calcular la dirección basada en la posición del joystick
+  const { x, y } = position;
+  let command = 'STOP';
+  let speed = 0;
+  let turn = 0;
+  
+  // Calcular magnitud (0-1)
+  const magnitude = Math.sqrt(x * x + y * y);
+  
+  // Si la magnitud es menor que el umbral, consideramos que está en reposo
+  if (magnitude < joystickThreshold) {
+    command = 'STOP';
+  } else {
+    // Calcular el ángulo en grados (0-360)
+    let angle = Math.atan2(y, x) * (180 / Math.PI);
+    if (angle < 0) angle += 360;
+    
+    // Determinar comando basado en el ángulo
+    if (angle >= 315 || angle < 45) {
+      command = 'RIGHT';
+      turn = magnitude;
+    } else if (angle >= 45 && angle < 135) {
+      command = 'FORWARD';
+      speed = magnitude;
+    } else if (angle >= 135 && angle < 225) {
+      command = 'LEFT';
+      turn = magnitude;
+    } else if (angle >= 225 && angle < 315) {
+      command = 'BACKWARD';
+      speed = magnitude;
+    }
+  }
+  
+  // Solo enviar si el comando ha cambiado o si los valores son significativamente diferentes
+  if (command !== joystickCommand.value || (magnitude > joystickThreshold)) {
+    joystickCommand.value = command;
+    
+    // Enviar el comando con los parámetros de velocidad y giro
+    sendCommand(command, { 
+      speed: Math.round(speed * 100), 
+      turn: Math.round(turn * 100)
+    });
+    
+    // Configurar un temporizador para enviar STOP si no hay movimiento durante un tiempo
+    if (command !== 'STOP') {
+      joystickTimer.value = setTimeout(() => {
+        sendCommand('STOP');
+        joystickCommand.value = 'STOP';
+      }, 200);
+    }
   }
 }
 
 onBeforeUnmount(() => {
-  socket?.close()
+  // Limpiar el temporizador del joystick si existe
+  if (joystickTimer.value) {
+    clearTimeout(joystickTimer.value);
+  }
+  
+  // Desconectar WebSocket
+  if (webSocketComponent.value) {
+    webSocketComponent.value.disconnectWebSocket()
+  }
 })
 </script>
 

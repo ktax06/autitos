@@ -3,6 +3,7 @@ import { onMounted, onUnmounted, ref } from 'vue';
 
 const websocket = ref(null);
 const isConnected = ref(false);
+const canSendMessage = ref(true);
 
 // Eventos personalizados
 const emit = defineEmits(['connected', 'disconnected', 'message', 'error']);
@@ -32,7 +33,7 @@ onUnmounted(() => {
 const connectWebSocket = (url) => {
   // Cerrar cualquier conexión existente primero
   disconnectWebSocket();
-  
+
   try {
     websocket.value = new WebSocket(url);
 
@@ -73,10 +74,23 @@ const disconnectWebSocket = () => {
 };
 
 const sendMessage = (message) => {
-  if (websocket.value && websocket.value.readyState === WebSocket.OPEN && message) {
-    websocket.value.send(message);
-    console.log('Mensaje enviado:', message);
-    return true;
+  if (websocket.value && websocket.value.readyState === WebSocket.OPEN && message && canSendMessage.value) {
+    canSendMessage.value = false;
+    try {
+      websocket.value.send(message);
+      console.log('Mensaje enviado:', message);
+      setTimeout(() => {
+        canSendMessage.value = true;
+      }, 500); // Espera 100 ms antes de permitir otro envío
+      return true;
+    } catch (error) {
+      console.error('Error al enviar mensaje:', error);
+      canSendMessage.value = true; // Re-habilitar en caso de error
+      return false;
+    }
+  } else if (!canSendMessage.value) {
+    console.warn('Envío de mensaje bloqueado: espera 100ms.');
+    return false;
   }
   return false;
 };
@@ -91,5 +105,4 @@ defineExpose({
 </script>
 
 <template>
-  <!-- Este componente no tiene representación visual -->
-</template>
+  </template>
