@@ -68,7 +68,6 @@
 
 <script setup>
 import { ref } from 'vue'
-import Joystick from 'vue-joystick'
 import JoystickComponent from './joystickComponent.vue'
 
 const flashOn = ref(false)
