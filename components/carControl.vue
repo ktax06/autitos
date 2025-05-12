@@ -315,12 +315,15 @@ const handleJoystickMove = (position) => {
 
 // Comprobar disponibilidad de la cámara periódicamente
 const checkCameraStatus = () => {
-  if (!manualIp.value) return;
-  
+  if (!manualIp.value || !isValidIp(manualIp.value)) {
+    console.warn('Dirección IP no válida:', manualIp.value);
+    return;
+  }
+
   // Comprobar cámara en puerto 82
   fetch(`http://${manualIp.value}:82/`, { mode: 'no-cors' })
     .then(() => {
-      // Asegurarnos que la URL está correctamente configurada si la cámara está disponible
+      // Asegurarnos de que la URL está correctamente configurada si la cámara está disponible
       if (!cameraUrl.value) {
         cameraUrl.value = `http://${manualIp.value}:82/stream`;
       }
@@ -346,6 +349,10 @@ onBeforeUnmount(() => {
   if (webSocketComponent.value) webSocketComponent.value.disconnectWebSocket()
 })
 
+const isValidIp = (ip) => {
+  const ipRegex = /^(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)$/;
+  return ipRegex.test(ip);
+};
 </script>
 
 <style scoped>
