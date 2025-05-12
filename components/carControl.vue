@@ -25,12 +25,20 @@
         >
           Cambiar Auto
         </button>
+        
+
       </div>
 
-      <!-- CÁMARA -->
+      <!-- CÁMARAS -->
       <div class="w-full md:flex-1">
+        <!-- Vista de cámara -->
         <div class="aspect-video bg-black rounded-2xl overflow-hidden shadow-lg w-full">
-          <img v-if="cameraUrl" :src="cameraUrl" alt="Cámara" class="w-full h-full object-cover" />
+          <img 
+            v-if="cameraUrl" 
+            :src="cameraUrl" 
+            alt="Cámara" 
+            class="w-full h-full object-cover" 
+          />
           <div v-else class="flex items-center justify-center h-full text-white">
             Esperando señal...
           </div>
@@ -132,14 +140,14 @@
 </template>
 
 <script setup>
-import { ref, onBeforeUnmount} from 'vue'
+import { onMounted, ref, onBeforeUnmount} from 'vue'
 import ESP32WebSocket from '~/components/websocket.vue'
 
 
 const flashOn = ref(false)
 const modalOpen = ref(false)
 const ipModalOpen = ref(false)
-const cameraUrl = ref('')
+const cameraUrl = ref('') // URL de la cámara (puerto 82)
 const manualIp = ref('')
 const connectionStatus = ref('')
 const searching = ref(false)
@@ -175,8 +183,17 @@ const connectToESP = async (ip = null) => {
       webSocketComponent.value.disconnectWebSocket()
     }
     
-    // Actualizar URL de la cámara
-    cameraUrl.value = `http://${targetIp}:81/stream`
+    // Actualizar URL de la cámara en el puerto 82
+    cameraUrl.value = `http://${targetIp}:82/stream`
+    
+    // Verificar conexión a la cámara
+    try {
+      const response = await fetch(`http://${targetIp}:82/`, { mode: 'no-cors' })
+      console.log('Cámara disponible en puerto 82')
+    } catch (err) {
+      console.warn('No se pudo conectar a la cámara en puerto 82:', err)
+      cameraUrl.value = ''
+    }
     
     // Crear una nueva conexión WebSocket con el componente
     webSocketComponent.value.connectWebSocket(`ws://${targetIp}:81/`)
@@ -296,17 +313,39 @@ const handleJoystickMove = (position) => {
   }
 }
 
-onBeforeUnmount(() => {
-  // Limpiar el temporizador del joystick si existe
-  if (joystickTimer.value) {
-    clearTimeout(joystickTimer.value);
-  }
+// Comprobar disponibilidad de la cámara periódicamente
+const checkCameraStatus = () => {
+  if (!manualIp.value) return;
   
-  // Desconectar WebSocket
-  if (webSocketComponent.value) {
-    webSocketComponent.value.disconnectWebSocket()
-  }
+  // Comprobar cámara en puerto 82
+  fetch(`http://${manualIp.value}:82/`, { mode: 'no-cors' })
+    .then(() => {
+      // Asegurarnos que la URL está correctamente configurada si la cámara está disponible
+      if (!cameraUrl.value) {
+        cameraUrl.value = `http://${manualIp.value}:82/stream`;
+      }
+    })
+    .catch(() => {
+      cameraUrl.value = '';
+      console.warn('La cámara en el puerto 82 no está respondiendo');
+    });
+};
+
+// Comprobar cada 10 segundos
+
+const cameraCheckInterval = ref(null);
+
+onMounted(() => {
+  // Iniciar el intervalo SOLO cuando el componente se monte en el cliente
+  cameraCheckInterval.value = setInterval(checkCameraStatus, 10000);
+});
+
+onBeforeUnmount(() => {
+  if (joystickTimer.value) clearTimeout(joystickTimer.value)
+  if (cameraCheckInterval.value) clearInterval(cameraCheckInterval.value)
+  if (webSocketComponent.value) webSocketComponent.value.disconnectWebSocket()
 })
+
 </script>
 
 <style scoped>
