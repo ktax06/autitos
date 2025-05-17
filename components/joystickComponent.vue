@@ -1,7 +1,7 @@
 <template>
   <div 
     ref="joystickContainer" 
-    class="joystick-container w-40 h-40 bg-gray-800 rounded-full relative border-4 border-gray-700 shadow-lg"
+    class="joystick-container w-60 h-60 bg-gray-800 rounded-full relative border-4 border-gray-700 shadow-lg"
     @mousedown="startDrag"
     @touchstart="startDrag"
   >

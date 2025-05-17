@@ -4,7 +4,7 @@
 
     <div class="flex flex-col-reverse md:flex-row w-full max-w-6xl gap-6 mt-4 items-center md:items-start">
       <!-- CONTROLES -->
-      <div class="flex flex-col items-center md:items-start md:w-1/3 space-y-8">
+      <div class="flex flex-col items-center md:items-start md:w-1/3 space-y-10 p-6">
         <!-- Botón Flash -->
         <button
           @click="toggleFlash"
@@ -14,16 +14,16 @@
         </button>
 
         <!-- Joystick -->
-        <div class="w-40 h-40">
+        <div class="w-40 h-40 mr-20">
           <JoystickComponent @move="handleJoystickMove" />
         </div>
 
-        <!-- Botón Cambiar Auto -->
+        <!-- Botón Conectar Autito -->
         <button
-          @click="modalOpen = true"
-          class="w-48 px-6 py-3 mt-6 bg-green-500 hover:bg-green-600 active:scale-95 text-white font-semibold rounded-2xl shadow-md transition-all duration-150"
+          @click="ipModalOpen = true"
+          class="w-48 px-6 py-3 mt-20 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold rounded-2xl shadow-md transition-all duration-150"
         >
-          Cambiar Auto
+          Conectar Autito
         </button>
         
 
@@ -46,50 +46,63 @@
       </div>
     </div>
 
-    <!-- MODAL Selección de Auto -->
-    <div v-if="modalOpen" class="backdrop-blur-sm fixed inset-0 bg-black/60 bg-opacity-80 flex items-center justify-center z-50">
-      <div class="bg-white p-6 rounded-2xl shadow-xl w-80 space-y-4">
-        <h2 class="text-xl font-bold mb-4">Selecciona un Auto</h2>
-        <ul class="space-y-2">
-          <li v-for="car in availableCars" :key="car.id">
-            <button @click="selectCar(car)" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-200">
-              {{ car.name }}
-            </button>
-          </li>
-        </ul>
-        <button @click="modalOpen = false" class="w-full mt-4 py-2 bg-red-400 hover:bg-red-500 text-white rounded-lg">
-          Cerrar
-        </button>
-      </div>
-    </div>
-
-    <!-- BOTÓN Conectar -->
-    <button
-      @click="ipModalOpen = true"
-      class="fixed bottom-6 right-6 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-full shadow-lg transition-all duration-150 z-40"
-    >
-      Conectar ESP32
-    </button>
-
     <!-- MODAL Conexión IP -->
     <div v-if="ipModalOpen" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
       <div class="bg-white p-6 rounded-2xl shadow-xl w-96 space-y-4">
-        <h2 class="text-xl font-bold text-center">Conectar al ESP32</h2>
+        <h2 class="text-xl font-bold text-center">Conectar Autito</h2>
         
         <label class="block">
-          <span class="text-sm font-medium text-gray-700">Dirección IP del ESP32</span>
+          <span class="text-sm font-medium text-gray-700">Dirección IP del autito</span>
           <input
-            v-model="manualIp"
-            placeholder="ej: 192.168.1.123"
-            class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-indigo-200 focus:outline-none"
-          />
+          v-model="manualIp"
+          :class="[
+            'mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring',
+            ipIsValid ? 'border-gray-300 focus:ring-indigo-200' : 'border-red-500 focus:ring-red-200'
+          ]"
+          placeholder="ej: 192.168.1.123"
+        />
         </label>
 
         <!-- Resultados búsqueda -->
         <div v-if="searching" class="text-sm text-gray-500 text-center">
           Buscando dispositivos en red...
         </div>
-        <ul v-if="foundDevices.length" class="text-sm mt-2 max-h-32 overflow-y-auto">
+       <!-- Indicador de carga -->
+        <div class="flex justify-center mt-2" v-if="searching">
+          <div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+
+        
+
+        <!-- Botones -->
+        <div class="flex justify-end gap-4">
+          
+          <button
+            @click="connectToESP"
+            :class="[
+              'px-4 py-2 rounded-lg font-semibold shadow-md',
+              searching
+                ? 'bg-gray-400 text-white cursor-not-allowed'
+                : 'bg-indigo-500 hover:bg-indigo-600 text-white'
+            ]"
+            >
+            Conectar
+          </button>
+          <button
+            @click="ipModalOpen = false"
+            :disabled="searching"
+            :class="[
+              'px-4 py-2 rounded-lg font-semibold shadow-md',
+              searching
+                ? 'bg-gray-400 text-white cursor-not-allowed'
+                : 'bg-gray-300 hover:bg-gray-400 text-gray-800 '
+            ]"
+            >
+            Cancelar
+          </button>
+        </div>
+
+         <ul v-if="foundDevices.length" class="text-sm mt-2 max-h-32 overflow-y-auto">
           <li v-for="ip in foundDevices" :key="ip">
             <button
               @click="connectToESP(ip)"
@@ -103,32 +116,22 @@
           No se encontraron dispositivos.
         </div>
 
-        <!-- Botones -->
-        <div class="flex justify-end gap-4">
-          <button
-            @click="connectToESP"
-            class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold shadow-md"
-          >
-            Conectar
-          </button>
-          <button
-            @click="ipModalOpen = false"
-            class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg font-semibold shadow-md"
-          >
-            Cancelar
-          </button>
-        </div>
-
         <div v-if="connectionStatus" class="text-center text-sm text-gray-700">
           Estado: {{ connectionStatus }}
         </div>
 
         <!-- Botón Buscar en red -->
+         <h1 class="flex justify-center mt-10 font-semibold">Búsqueda automática</h1>
         <button
           @click="scanNetwork"
-          class="w-full py-2 mt-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold shadow-md"
-        >
-          Buscar en red
+          :disabled="searching"
+          :class="[
+            'w-full py-2 mt-2 font-semibold rounded-lg shadow-md',
+            searching
+              ? 'bg-gray-600 text-white cursor-not-allowed'
+              : 'bg-blue-500 hover:bg-blue-600 text-white'
+          ]">
+          Buscar dispositivos en la red
         </button>
       </div>
     </div>
@@ -155,7 +158,7 @@ const searchCompleted = ref(false)
 const foundDevices = ref([])
 const webSocketComponent = ref(null)
 
-const currentCar = ref({ id: 1, name: 'Mi Auto ESP32' }) 
+const currentCar = ref({ id: 1, name: 'Proyecto autito ICC' }) 
 const availableCars = ref([]) //rellénalo desde API o backend
 
 const toggleFlash = () => {
@@ -167,11 +170,13 @@ const selectCar = (car) => {
   currentCar.value = car
   modalOpen.value = false
 }
+const ipIsValid = ref(true)
 
 const connectToESP = async (ip = null) => {
   const targetIp = ip || manualIp.value
-  if (!targetIp) {
-    connectionStatus.value = 'IP no válida'
+  if (!isValidIp(manualIp.value)) {
+    ipIsValid.value = false
+    connectionStatus.value = 'IP inválida. Formato esperado: 192.168.X.X'
     return
   }
 
