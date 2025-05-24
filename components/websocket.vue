@@ -1,3 +1,4 @@
+<!-- websocket.vue -->
 <script setup>
 import { onMounted, onUnmounted, ref } from 'vue';
 

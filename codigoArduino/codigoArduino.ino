@@ -4,6 +4,7 @@
 #include <WebSocketsServer.h>
 #include "esp_camera.h"
 #include "esp_http_server.h"
+#include "BluetoothSerial.h"
 
 //WiFi
 const char* ssid = "Casa1";
@@ -12,6 +13,8 @@ const char* password = "argentina";
 //WebSocket Server
 WebServer server(80);
 WebSocketsServer webSocket = WebSocketsServer(81); // Puerto para WebSocket
+
+BluetoothSerial SerialBT;
 
 // Configuración de motores
 #define ENA 4  // Enable Motor A (PWM)
@@ -74,17 +77,18 @@ bool initCamera() {
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
   
-  // Calidad y resolución iniciales
-  if (psramFound()) {
+   if (psramFound()) {
+    Serial.println("PSRAM detectada");
     config.frame_size = FRAMESIZE_VGA;
     config.jpeg_quality = 10;
     config.fb_count = 2;
   } else {
-    config.frame_size = FRAMESIZE_SVGA;
+    Serial.println("PSRAM NO detectada");
+    config.frame_size = FRAMESIZE_QVGA;
     config.jpeg_quality = 12;
     config.fb_count = 1;
   }
-  
+
   // Inicializar la cámara
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
@@ -402,13 +406,6 @@ void setup() {
   // Configurar pines de motor y LED
   configureMotorPins();
 
-  // Inicializar cámara
-  Serial.println("Inicializando cámara...");
-  if (!initCamera()) {
-    Serial.println("Fallo al inicializar la cámara. Reiniciando...");
-    ESP.restart();
-  }
-  Serial.println("Cámara inicializada correctamente");
 
   Serial.println("Iniciando conexión Wi-Fi...");
 
@@ -431,6 +428,14 @@ void setup() {
   Serial.println("Conectado a WiFi");
   Serial.print("Dirección IP: ");
   Serial.println(WiFi.localIP());
+
+  // Inicializar cámara
+  Serial.println("Inicializando cámara...");
+  if (!initCamera()) {
+    Serial.println("Fallo al inicializar la cámara. Reiniciando...");
+    ESP.restart();
+  }
+  Serial.println("Cámara inicializada correctamente");
 
   // Iniciar el servidor HTTP
   server.on("/", handleRoot);
@@ -462,9 +467,21 @@ void setup() {
   Serial.print("Stream URL: http://");
   Serial.print(WiFi.localIP());
   Serial.println(":82/stream");
+
+  SerialBT.begin("ESP32test"); //Bluetooth device name
+  Serial.println("The device started, now you can pair it with bluetooth!");
+  
 }
 
 void loop() {
   webSocket.loop();
   server.handleClient();
+
+  if (Serial.available()) {
+    SerialBT.write(Serial.read());
+  }
+  if (SerialBT.available()) {
+    Serial.write(SerialBT.read());
+  }
+  delay(20);
 }
