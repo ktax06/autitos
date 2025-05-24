@@ -7,6 +7,18 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   css: ['~/assets/css/main.css'],
 
+  app: {
+    head: {
+      title: 'Proyecto Autito ICC',
+      meta: [
+        { name: 'description', content: 'Control y monitoreo de autito ICC por WiFi' }
+      ],
+      link: [
+        { rel: 'icon', type: 'image/png', href: '/auto.png' } // Asegúrate de tener favicon.png en /public
+      ]
+    }
+  },
+
   vite: {
     plugins: [
       tailwindcss(),
