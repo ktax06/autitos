@@ -6,6 +6,13 @@
 #include "esp_http_server.h"
 #include "BluetoothSerial.h"
 
+
+#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
+#error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
+#endif
+
+BluetoothSerial SerialBT;
+
 //WiFi
 const char* ssid = "Casa1";
 const char* password = "argentina";
@@ -14,7 +21,6 @@ const char* password = "argentina";
 WebServer server(80);
 WebSocketsServer webSocket = WebSocketsServer(81); // Puerto para WebSocket
 
-BluetoothSerial SerialBT;
 
 // Configuración de motores
 #define ENA 4  // Enable Motor A (PWM)
@@ -467,9 +473,6 @@ void setup() {
   Serial.print("Stream URL: http://");
   Serial.print(WiFi.localIP());
   Serial.println(":82/stream");
-
-  SerialBT.begin("ESP32test"); //Bluetooth device name
-  Serial.println("The device started, now you can pair it with bluetooth!");
   
 }
 
