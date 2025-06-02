@@ -1,0 +1,28 @@
+plugins = []
+headers = []
+redirects = []
+
+[functions]
+
+[functions."*"]
+
+[build]
+publish = "/home/artulita/Documents/gpt/prueba2/autitos/dist"
+publishOrigin = "ui"
+commandOrigin = "ui"
+base = "/home/artulita/Documents/gpt/prueba2/autitos"
+command = "pnpm run build"
+
+[build.environment]
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
