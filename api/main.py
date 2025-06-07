@@ -22,14 +22,14 @@ app = FastAPI(
 # Configuración CORS para Vue.js
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8080", "http://127.0.0.1:3000", "http://127.0.0.1:8080", "http://localhost:5173"],  # Cambia según tu configuración de Vue.js
+    allow_origins=["http://localhost:3000", "http://localhost:8080", "http://127.0.0.1:3000", "http://127.0.0.1:8080", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Configuración del ESP32-CAM
-ESP32_IP = "192.168.1.100"  # Cambia por la IP de tu ESP32-CAM
+ESP32_IP = "192.168.1.26"  # Cambia por la IP de tu ESP32-CAM
 ESP32_PORT = 80
 ESP32_BASE_URL = f"http://{ESP32_IP}:{ESP32_PORT}"
 
