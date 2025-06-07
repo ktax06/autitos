@@ -25,17 +25,16 @@
         </div>
       </div>
 
-      <!-- CÁMARAS -->
+      <!-- VISTA DE CÁMARA -->
       <div class="w-full md:flex-1">
         <!-- Vista de cámara -->
-        <div class="aspect-video bg-black rounded-2xl overflow-hidden shadow-lg w-full">
+        <div class="bg-black rounded-2xl overflow-hidden shadow-lg w-full">
           <img 
             v-if="cameraUrl" 
             :src="cameraUrl" 
-            alt="Cámara" 
-            class="w-full h-full object-cover"
+            alt="Stream de cámara" 
             @error="handleCameraError"
-          />
+            style="transform: rotate(90deg); max-width: 100%; height: auto;" />
           <div v-else class="flex items-center justify-center h-full text-white">
             {{ cameraErrorMessage || 'Cargando cámara...' }}
           </div>
@@ -47,7 +46,8 @@
 
 <script setup>
 import JoystickComponent from './joystickComponent.vue'
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+
 
 // Variables reactivas
 const flashOn = ref(false)
@@ -57,7 +57,22 @@ const cameraErrorMessage = ref('')
 // API base
 const API_BASE_URL = 'http://localhost:8000'
 
-const cameraUrl = computed(() => `${API_BASE_URL}/camera?t=${Date.now()}`)
+const cameraTimestamp = ref(Date.now())
+
+const cameraUrl = computed(() => `${API_BASE_URL}/camera?t=${cameraTimestamp.value}`)
+
+let cameraInterval = null
+
+onMounted(() => {
+  cameraInterval = setInterval(() => {
+    cameraTimestamp.value = Date.now()
+  }, 1000) // cada 1 segundo
+})
+
+onUnmounted(() => {
+  clearInterval(cameraInterval)
+})
+
 
 const apiCall = async (endpoint, options = {}) => {
   try {
@@ -160,4 +175,5 @@ const handleCameraError = () => {
   console.warn('Error cargando stream de cámara')
   cameraErrorMessage.value = 'No se pudo cargar la cámara'
 }
+
 </script>

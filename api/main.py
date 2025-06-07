@@ -1,13 +1,11 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 import httpx
-import asyncio
 import logging
 from datetime import datetime
-import io
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO)
@@ -28,8 +26,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configuración del ESP32-CAM
-ESP32_IP = "192.168.1.26"  # Cambia por la IP de tu ESP32-CAM
+ESP32_IP: str | None = None
+
+class RegisterRequest(BaseModel):
+    ip: str
+    
 ESP32_PORT = 80
 ESP32_BASE_URL = f"http://{ESP32_IP}:{ESP32_PORT}"
 
@@ -92,6 +93,13 @@ COMMAND_MAPPING = {
     "FLASH_ON": "/flash/on",
     "FLASH_OFF": "/flash/off"
 }
+
+@app.post("/esp32/register")
+async def register_esp32(data: RegisterRequest):
+    global esp32_ip
+    esp32_ip = data.ip
+    logger.info(f"ESP32 registrado con IP: {esp32_ip}")
+    return {"message": "IP del ESP32 registrada correctamente", "ip": esp32_ip}
 
 @app.get("/")
 async def root():
@@ -176,12 +184,9 @@ async def get_camera_stream():
             async with client.stream("GET", camera_url) as response:
                 response.raise_for_status()
                 
-                async def generate():
-                    async for chunk in response.aiter_bytes():
-                        yield chunk
-                
-                return StreamingResponse(
-                    generate(),
+                image_bytes = await response.aread()
+                return Response(
+                    content=image_bytes,
                     media_type="image/jpeg",
                     headers={
                         "Cache-Control": "no-cache, no-store, must-revalidate",

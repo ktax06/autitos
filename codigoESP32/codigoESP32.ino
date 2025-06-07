@@ -1,11 +1,11 @@
 #include <WiFi.h>
-#include <WebServer.h>
+#include <HTTPClient.h>
 #include "esp_camera.h"
 
 const char* ssid = "Casa1";
 const char* password = "argentina";
 
-WebServer server(80);
+const char* serverUrl = "http://192.168.1.33:8000/esp32/action";
 
 #define ENA 4
 #define IN1 12
@@ -17,6 +17,7 @@ WebServer server(80);
 
 #define FLASH_PIN 4
 
+// Pines cámara
 #define PWDN_GPIO_NUM     32
 #define RESET_GPIO_NUM    -1
 #define XCLK_GPIO_NUM      0
@@ -36,47 +37,176 @@ WebServer server(80);
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("Iniciando ESP32-CAM AI Thinker...");
+  Serial.println("Iniciando ESP32-CAM...");
 
-   // Conectar WiFi
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
-    Serial.println("Conectando WiFi...");
+    Serial.println("Conectando a WiFi...");
   }
-  Serial.println("IP: " + WiFi.localIP().toString());
+  Serial.println("Conectado, IP: " + WiFi.localIP().toString());
 
-  // Inicializar la cámara
   if (!initCamera()) {
-    Serial.println("Error al inicializar la cámara");
-    return;
-  } else {
-    Serial.println("Cámara inicializada correctamente");
+    Serial.println("Error al inicializar cámara");
   }
 
-  // Configurar pines de motores
   configureMotorPins();
-  Serial.println("Pines de motores configurados");
-
-  // Configurar rutas
-  server.on("/forward", handleForward);
-  server.on("/backward", handleBackward);
-  server.on("/left", handleLeft);
-  server.on("/right", handleRight);
-  server.on("/stop", handleStop);
-  server.on("/flash/on", handleFlashOn);
-  server.on("/flash/off", handleFlashOff);
-  server.on("/cam-hi.jpg", handleCamera);
-  server.on("/status", handleStatus);
-
-  server.begin();
-  Serial.println("Servidor HTTP iniciado");
-
+  Serial.println("Setup completo");
 }
 
 void loop() {
-  server.handleClient();
+  String action = getActionFromServer();
+  if (action.length() > 0) {
+    executeAction(action);
+  } else {
+    Serial.println("No action or error getting action");
+  }
+
+  bool ok = sendCameraImage("http://192.168.1.33:8000/esp32/upload_image");
+  
+  if (ok) {
+    Serial.println("Imagen enviada correctamente");
+  } else {
+    Serial.println("Error enviando imagen");
+  }
+
+  delay(1000);  // Esperar 3 segundos antes de la siguiente consulta
 }
+
+String getActionFromServer() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi no conectado");
+    return "";
+  }
+
+  HTTPClient http;
+  http.begin(serverUrl);
+
+  int httpCode = http.GET();
+  String payload = "";
+
+  if (httpCode == 200) {
+    payload = http.getString();
+    Serial.println("Respuesta servidor: " + payload);
+  } else {
+    Serial.printf("Error en GET: %d\n", httpCode);
+  }
+
+  http.end();
+
+  // Ejemplo respuesta: {"action": "forward"}
+  // Extraer el valor de "action" de forma simple
+
+  int start = payload.indexOf("\"action\"");
+  if (start == -1) return "";
+
+  int colon = payload.indexOf(":", start);
+  int quote1 = payload.indexOf("\"", colon);
+  int quote2 = payload.indexOf("\"", quote1 + 1);
+  if (colon == -1 || quote1 == -1 || quote2 == -1) return "";
+
+  String action = payload.substring(quote1 + 1, quote2);
+  return action;
+}
+
+void executeAction(String action) {
+  Serial.println("Ejecutando acción: " + action);
+
+  if (action == "forward") {
+    handleForward();
+  } else if (action == "backward") {
+    handleBackward();
+  } else if (action == "left") {
+    handleLeft();
+  } else if (action == "right") {
+    handleRight();
+  } else if (action == "stop") {
+    handleStop();
+  } else if (action == "flash_on") {
+    handleFlashOn();
+  } else if (action == "flash_off") {
+    handleFlashOff();
+  } else {
+    Serial.println("Accion desconocida");
+  }
+}
+
+// Implementación motores y flash
+
+void configureMotorPins() {
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+  pinMode(ENA, OUTPUT);
+  pinMode(ENB, OUTPUT);
+  
+  analogWrite(ENA, 0);
+  analogWrite(ENB, 0);
+  
+  pinMode(FLASH_PIN, OUTPUT);
+  digitalWrite(FLASH_PIN, LOW);
+
+  Serial.println("Pines de motores configurados");
+}
+
+void handleForward() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+  analogWrite(ENA, 255);
+  analogWrite(ENB, 255);
+  Serial.println("Avanzando");
+}
+
+void handleBackward() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+  analogWrite(ENA, 255);
+  analogWrite(ENB, 255);
+  Serial.println("Retrocediendo");
+}
+
+void handleLeft() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+  analogWrite(ENA, 255);
+  analogWrite(ENB, 255);
+  Serial.println("Girando izquierda");
+}
+
+void handleRight() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+  analogWrite(ENA, 255);
+  analogWrite(ENB, 255);
+  Serial.println("Girando derecha");
+}
+
+void handleStop() {
+  analogWrite(ENA, 0);
+  analogWrite(ENB, 0);
+  Serial.println("Parando motores");
+}
+
+void handleFlashOn() {
+  digitalWrite(FLASH_PIN, HIGH);
+  Serial.println("Flash encendido");
+}
+
+void handleFlashOff() {
+  digitalWrite(FLASH_PIN, LOW);
+  Serial.println("Flash apagado");
+}
+
+// Cámara
 
 bool initCamera() {
   camera_config_t config;
@@ -100,8 +230,7 @@ bool initCamera() {
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
-  
-  // Calidad y resolución iniciales
+
   if (psramFound()) {
     config.frame_size = FRAMESIZE_VGA;
     config.jpeg_quality = 10;
@@ -111,121 +240,43 @@ bool initCamera() {
     config.jpeg_quality = 12;
     config.fb_count = 1;
   }
-  
-  // Inicializar la cámara
+
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
-    Serial.printf("La inicialización de la cámara falló con error 0x%x", err);
+    Serial.printf("Error al inicializar cámara: 0x%x\n", err);
     return false;
   }
-  
   return true;
 }
 
-void configureMotorPins() {
-  pinMode(IN1, OUTPUT);
-  pinMode(IN2, OUTPUT);
-  pinMode(IN3, OUTPUT);
-  pinMode(IN4, OUTPUT);
-  pinMode(ENA, OUTPUT);
-  pinMode(ENB, OUTPUT);
-  
-  analogWrite(ENA, 0);
-  analogWrite(ENB, 0);
-  
-  pinMode(FLASH_PIN, OUTPUT);
-  digitalWrite(FLASH_PIN, LOW);
-
-  Serial.println("Motor pins configured");
-}
-
-void handleForward() {
-
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
-  analogWrite(ENA, 1);
-  analogWrite(ENB, 1);
-  
-  Serial.println("Forward movement initiated");
-  server.send(200, "text/plain", "OK");
-}
-
-void handleBackward() {
-  
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
-  analogWrite(ENA, 1);
-  analogWrite(ENB, 1);
-  
-  Serial.println("Backward movement initiated");
-  server.send(200, "text/plain", "OK");
-}
-
-void handleLeft() {
-  
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
-  analogWrite(ENA, 1);
-  analogWrite(ENB, 1);
-  
-  Serial.println("Left turn initiated");
-  server.send(200, "text/plain", "OK");
-}
-
-void handleRight() {
-  
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
-  analogWrite(ENA, 1);
-  analogWrite(ENB, 1);
-  
-  Serial.println("Right turn initiated");
-  server.send(200, "text/plain", "OK");
-}
-
-void handleStop() {
-  
-  analogWrite(ENA, 0);
-  analogWrite(ENB, 0);
-  
-  Serial.println("Stop");
-  server.send(200, "text/plain", "OK");
-}
-
-void handleFlashOn() {
-  digitalWrite(FLASH_PIN, HIGH);
-  Serial.println("Flash ON");
-  server.send(200, "text/plain", "OK");
-}
-
-void handleFlashOff() {
-  digitalWrite(FLASH_PIN, LOW);
-  Serial.println("Flash OFF");
-  server.send(200, "text/plain", "OK");
-}
-
-void handleCamera() {
+bool sendCameraImage(const char* serverUrl) {
   camera_fb_t * fb = esp_camera_fb_get();
   if (!fb) {
-    server.send(500, "text/plain", "Camera Error");
-    return;
+    Serial.println("Error obteniendo frame de cámara");
+    return false;
   }
-  
-  server.sendHeader("Content-Type", "image/jpeg");
-  server.sendHeader("Cache-Control", "no-cache");
-  server.send_P(200, "image/jpeg", (const char *)fb->buf, fb->len);
-  
-  esp_camera_fb_return(fb);
-}
 
-void handleStatus() {
-  server.send(200, "application/json", "{\"status\":\"ok\"}");
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi no conectado");
+    esp_camera_fb_return(fb);
+    return false;
+  }
+
+  HTTPClient http;
+  http.begin(serverUrl);
+  http.addHeader("Content-Type", "image/jpeg");
+
+  int httpResponseCode = http.POST(fb->buf, fb->len);
+
+  esp_camera_fb_return(fb);
+
+  if (httpResponseCode > 0) {
+    Serial.printf("POST enviado, código respuesta: %d\n", httpResponseCode);
+    return true;
+  } else {
+    Serial.printf("Error en POST: %s\n", http.errorToString(httpResponseCode).c_str());
+    return false;
+  }
+
+  http.end();
 }
