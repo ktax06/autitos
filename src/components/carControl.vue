@@ -55,7 +55,7 @@ const serverStatus = ref('')
 const cameraErrorMessage = ref('')
 
 // API base
-const API_BASE_URL = 'http://localhost:8000'
+const API_BASE_URL = 'https://api-autito.arturoalvarez.website'
 
 const cameraTimestamp = ref(Date.now())
 

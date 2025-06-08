@@ -1,20 +1,23 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>  
 #include "esp_camera.h"
 
 const char* ssid = "Casa1";
 const char* password = "argentina";
 
-const char* serverUrl = "http://192.168.1.33:8000/esp32/action";
+// URL HTTPS de la API
+const char* serverUrl = "https://api-autito.arturoalvarez.website/esp32/action";
+const char* uploadUrl = "https://api-autito.arturoalvarez.website/esp32/upload_image";
 
 #define ENAS 2
 #define IN1 12
 #define IN2 13
-
 #define IN3 15
 #define IN4 14 
-
 #define FLASH_PIN 4
+
+WiFiClientSecure client;
 
 // Pines cámara
 #define PWDN_GPIO_NUM     32
@@ -50,6 +53,7 @@ void setup() {
   }
 
   configureMotorPins();
+  client.setInsecure();
   Serial.println("Setup completo");
 }
 
@@ -61,7 +65,7 @@ void loop() {
     Serial.println("No action or error getting action");
   }
 
-  bool ok = sendCameraImage("http://192.168.1.33:8000/esp32/upload_image");
+  bool ok = sendCameraImage(uploadUrl);
   
   if (ok) {
     Serial.println("Imagen enviada correctamente");
@@ -269,6 +273,4 @@ bool sendCameraImage(const char* serverUrl) {
     Serial.printf("Error en POST: %s\n", http.errorToString(httpResponseCode).c_str());
     return false;
   }
-
-  http.end();
 }
