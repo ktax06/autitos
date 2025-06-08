@@ -7,11 +7,10 @@ const char* password = "argentina";
 
 const char* serverUrl = "http://192.168.1.33:8000/esp32/action";
 
-#define ENA 4
+#define ENAS 2
 #define IN1 12
 #define IN2 13
 
-#define ENB 2
 #define IN3 15
 #define IN4 14 
 
@@ -70,7 +69,7 @@ void loop() {
     Serial.println("Error enviando imagen");
   }
 
-  delay(1000);  // Esperar 3 segundos antes de la siguiente consulta
+  delay(500);
 }
 
 String getActionFromServer() {
@@ -138,11 +137,9 @@ void configureMotorPins() {
   pinMode(IN2, OUTPUT);
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
-  pinMode(ENA, OUTPUT);
-  pinMode(ENB, OUTPUT);
+  pinMode(ENAS, OUTPUT);
   
-  analogWrite(ENA, 0);
-  analogWrite(ENB, 0);
+  analogWrite(ENAS, 0);
   
   pinMode(FLASH_PIN, OUTPUT);
   digitalWrite(FLASH_PIN, LOW);
@@ -155,8 +152,7 @@ void handleForward() {
   digitalWrite(IN2, LOW);
   digitalWrite(IN3, HIGH);
   digitalWrite(IN4, LOW);
-  analogWrite(ENA, 255);
-  analogWrite(ENB, 255);
+  analogWrite(ENAS, 255);
   Serial.println("Avanzando");
 }
 
@@ -165,8 +161,7 @@ void handleBackward() {
   digitalWrite(IN2, HIGH);
   digitalWrite(IN3, LOW);
   digitalWrite(IN4, HIGH);
-  analogWrite(ENA, 255);
-  analogWrite(ENB, 255);
+  analogWrite(ENAS, 255);
   Serial.println("Retrocediendo");
 }
 
@@ -175,8 +170,7 @@ void handleLeft() {
   digitalWrite(IN2, LOW);
   digitalWrite(IN3, LOW);
   digitalWrite(IN4, HIGH);
-  analogWrite(ENA, 255);
-  analogWrite(ENB, 255);
+  analogWrite(ENAS, 255);
   Serial.println("Girando izquierda");
 }
 
@@ -185,14 +179,12 @@ void handleRight() {
   digitalWrite(IN2, HIGH);
   digitalWrite(IN3, HIGH);
   digitalWrite(IN4, LOW);
-  analogWrite(ENA, 255);
-  analogWrite(ENB, 255);
+  analogWrite(ENAS, 255);
   Serial.println("Girando derecha");
 }
 
 void handleStop() {
-  analogWrite(ENA, 0);
-  analogWrite(ENB, 0);
+  analogWrite(ENAS, 0);
   Serial.println("Parando motores");
 }
 

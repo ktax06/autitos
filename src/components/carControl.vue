@@ -28,7 +28,7 @@
       <!-- VISTA DE CÁMARA -->
       <div class="w-full md:flex-1">
         <!-- Vista de cámara -->
-        <div class="bg-black rounded-2xl overflow-hidden shadow-lg w-full">
+        <div class="aspect-4/3 bg-black rounded-2xl overflow-hidden shadow-lg w-full">
           <img 
             v-if="cameraUrl" 
             :src="cameraUrl" 
@@ -66,7 +66,7 @@ let cameraInterval = null
 onMounted(() => {
   cameraInterval = setInterval(() => {
     cameraTimestamp.value = Date.now()
-  }, 1000) // cada 1 segundo
+  }, 500) // cada 1 segundo
 })
 
 onUnmounted(() => {
@@ -115,41 +115,41 @@ const sendCommand = async (command, params = {}) => {
 
 const toggleFlash = () => {
   flashOn.value = !flashOn.value
-  sendCommand(flashOn.value ? 'FLASH_ON' : 'FLASH_OFF')
+  sendCommand(flashOn.value ? 'flash_on' : 'flash_off')
 }
 
 // Joystick
 const joystickThreshold = 0.15
-const joystickCommand = ref('STOP')
+const joystickCommand = ref('stop')
 const joystickTimer = ref(null)
 
 const handleJoystickMove = (position) => {
   if (joystickTimer.value) clearTimeout(joystickTimer.value)
 
   const { x, y } = position
-  let command = 'STOP'
+  let command = 'stop'
   let speed = 0
   let turn = 0
 
   const magnitude = Math.sqrt(x * x + y * y)
 
   if (magnitude < joystickThreshold) {
-    command = 'STOP'
+    command = 'stop'
   } else {
     let angle = Math.atan2(y, x) * (180 / Math.PI)
     if (angle < 0) angle += 360
 
     if (angle >= 315 || angle < 45) {
-      command = 'RIGHT'
+      command = 'right'
       turn = magnitude
     } else if (angle >= 45 && angle < 135) {
-      command = 'FORWARD'
+      command = 'forward'
       speed = magnitude
     } else if (angle >= 135 && angle < 225) {
-      command = 'LEFT'
+      command = 'left'
       turn = magnitude
     } else if (angle >= 225 && angle < 315) {
-      command = 'BACKWARD'
+      command = 'backward'
       speed = magnitude
     }
   }
@@ -162,10 +162,10 @@ const handleJoystickMove = (position) => {
       turn: Math.round(turn * 100)
     })
 
-    if (command !== 'STOP') {
+    if (command !== 'stop') {
       joystickTimer.value = setTimeout(() => {
-        sendCommand('STOP')
-        joystickCommand.value = 'STOP'
+        sendCommand('stop')
+        joystickCommand.value = 'stop'
       }, 200)
     }
   }
