@@ -98,3 +98,6 @@ certs/
 # Deployment scripts
 deploy.sh
 *.sh
+
+# certificates
+*.pem
