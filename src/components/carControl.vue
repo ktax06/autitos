@@ -9,19 +9,29 @@
         <button
           @click="toggleFlash"
           class="w-48 px-6 py-3 bg-yellow-400 hover:bg-yellow-500 active:scale-95 text-white font-semibold rounded-2xl shadow-md transition duration-150"
+          :disabled="!isConnected"
         >
           {{ flashOn ? 'Apagar Flash' : 'Encender Flash' }}
         </button>
 
         <!-- Joystick -->
         <div class="w-60 h-60 flex justify-center items-center">
-          <JoystickComponent @move="handleJoystickMove" />
+          <JoystickComponent @move="handleJoystickMove" :disabled="!isConnected" />
         </div>
 
         <!-- Estado del servidor -->
         <div class="w-full text-center space-y-1">
-          <p class="text-sm text-gray-500">Modo HTTP</p>
+          <p class="text-sm" :class="isConnected ? 'text-green-600' : 'text-red-600'">
+            {{ isConnected ? 'WebSocket Conectado' : 'WebSocket Desconectado' }}
+          </p>
           <p class="text-xs text-gray-400">{{ serverStatus }}</p>
+          <button 
+            v-if="!isConnected" 
+            @click="connectWebSocket" 
+            class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm"
+          >
+            Reconectar
+          </button>
         </div>
       </div>
 
@@ -30,14 +40,20 @@
         <!-- Vista de cámara -->
         <div class="aspect-4/3 bg-black rounded-2xl overflow-hidden shadow-lg w-full">
           <img 
-            v-if="cameraUrl" 
-            :src="cameraUrl" 
+            v-if="cameraImageSrc" 
+            :src="cameraImageSrc" 
             alt="Stream de cámara" 
-            @error="handleCameraError"
-            style="transform: rotate(90deg); max-width: 100%; height: auto;" />
+            style="transform: rotate(90deg); max-width: 100%; height: auto;" 
+            class="w-full h-full object-cover"
+          />
           <div v-else class="flex items-center justify-center h-full text-white">
-            {{ cameraErrorMessage || 'Cargando cámara...' }}
+            {{ cameraErrorMessage || 'Esperando imagen de la cámara...' }}
           </div>
+        </div>
+        
+        <!-- Información de imagen -->
+        <div class="text-center mt-2 text-xs text-gray-500">
+          {{ lastImageTime ? `Última imagen: ${formatTime(lastImageTime)}` : 'Sin imagen' }}
         </div>
       </div>
     </div>
@@ -46,55 +62,104 @@
 
 <script setup>
 import JoystickComponent from './joystickComponent.vue'
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-
+import { ref, onMounted, onUnmounted } from 'vue'
 
 // Variables reactivas
 const flashOn = ref(false)
-const serverStatus = ref('')
+const serverStatus = ref('Iniciando conexión...')
 const cameraErrorMessage = ref('')
+const cameraImageSrc = ref('')
+const lastImageTime = ref(null)
+const isConnected = ref(false)
 
-// API base
-const API_BASE_URL = 'https://api-autito.arturoalvarez.website'
+// WebSocket
+let websocket = null
+const WS_URL = 'https://api-autito.arturoalvarez.website/ws'  // Cambia a ws:// si no usas HTTPS
 
-const cameraTimestamp = ref(Date.now())
+// Función para conectar WebSocket
+const connectWebSocket = () => {
+  if (websocket && websocket.readyState === WebSocket.OPEN) {
+    websocket.close()
+  }
 
-const cameraUrl = computed(() => `${API_BASE_URL}/camera?t=${cameraTimestamp.value}`)
-
-let cameraInterval = null
-
-onMounted(() => {
-  cameraInterval = setInterval(() => {
-    cameraTimestamp.value = Date.now()
-  }, 500) // cada 1 segundo
-})
-
-onUnmounted(() => {
-  clearInterval(cameraInterval)
-})
-
-
-const apiCall = async (endpoint, options = {}) => {
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-      },
-      ...options
-    })
+    websocket = new WebSocket(WS_URL)
+    
+    websocket.onopen = () => {
+      console.log('WebSocket conectado')
+      isConnected.value = true
+      serverStatus.value = 'Conectado al servidor'
+      
+      // Identificarse como cliente Vue
+      websocket.send(JSON.stringify({
+        role: 'vue'
+      }))
+    }
 
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+    websocket.onmessage = async (event) => {
+      try {
+        // Intentar parsear como JSON primero
+        const data = JSON.parse(event.data)
+        console.log('Mensaje recibido:', data)
+        
+        if (data.type === 'status') {
+          serverStatus.value = `Estado: ${data.value}`
+        }
+      } catch (e) {
+        // Si no es JSON, probablemente es una imagen (Blob)
+        if (event.data instanceof Blob) {
+          const imageUrl = URL.createObjectURL(event.data)
+          
+          // Liberar URL anterior para evitar memory leaks
+          if (cameraImageSrc.value && cameraImageSrc.value.startsWith('blob:')) {
+            URL.revokeObjectURL(cameraImageSrc.value)
+          }
+          
+          cameraImageSrc.value = imageUrl
+          lastImageTime.value = new Date()
+          cameraErrorMessage.value = ''
+          
+          console.log('Nueva imagen recibida')
+        }
+      }
+    }
 
-    return await response.json()
+    websocket.onerror = (error) => {
+      console.error('Error WebSocket:', error)
+      serverStatus.value = 'Error de conexión'
+      isConnected.value = false
+    }
+
+    websocket.onclose = (event) => {
+      console.log('WebSocket cerrado:', event.code, event.reason)
+      isConnected.value = false
+      serverStatus.value = 'Conexión cerrada'
+      
+      // Intentar reconectar después de 3 segundos
+      setTimeout(() => {
+        if (!isConnected.value) {
+          console.log('Intentando reconectar...')
+          serverStatus.value = 'Reconectando...'
+          connectWebSocket()
+        }
+      }, 3000)
+    }
+
   } catch (error) {
-    console.error('API call error:', error)
-    serverStatus.value = `Error API: ${error.message}`
-    throw error
+    console.error('Error creando WebSocket:', error)
+    serverStatus.value = 'Error al conectar'
+    isConnected.value = false
   }
 }
 
-const sendCommand = async (command, params = {}) => {
+// Función para enviar comandos
+const sendCommand = (command, params = {}) => {
+  if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+    console.error('WebSocket no está conectado')
+    serverStatus.value = 'Sin conexión - comando no enviado'
+    return
+  }
+
   const commandData = {
     type: 'command',
     value: command,
@@ -102,17 +167,16 @@ const sendCommand = async (command, params = {}) => {
   }
 
   try {
-    await apiCall('/robots/command', {
-      method: 'POST',
-      body: JSON.stringify(commandData)
-    })
+    websocket.send(JSON.stringify(commandData))
     serverStatus.value = `Comando enviado: ${command}`
+    console.log('Comando enviado:', commandData)
   } catch (error) {
     console.error('Error enviando comando:', error)
-    serverStatus.value = 'Fallo al enviar comando'
+    serverStatus.value = 'Error enviando comando'
   }
 }
 
+// Función para toggle flash
 const toggleFlash = () => {
   flashOn.value = !flashOn.value
   sendCommand(flashOn.value ? 'flash_on' : 'flash_off')
@@ -124,56 +188,75 @@ const joystickCommand = ref('stop')
 const joystickTimer = ref(null)
 
 const handleJoystickMove = (position) => {
-  if (joystickTimer.value) clearTimeout(joystickTimer.value)
+  if (!isConnected.value) return
 
   const { x, y } = position
   let command = 'stop'
   let speed = 0
-  let turn = 0
-
   const magnitude = Math.sqrt(x * x + y * y)
+
+  if (!window.centerStopInterval) window.centerStopInterval = null
 
   if (magnitude < joystickThreshold) {
     command = 'stop'
+
+    if (!window.centerStopInterval) {
+      window.centerStopInterval = setInterval(() => {
+        sendCommand('stop')
+      }, 100)
+    }
   } else {
+    if (window.centerStopInterval) {
+      clearInterval(window.centerStopInterval)
+      window.centerStopInterval = null
+    }
+
     let angle = Math.atan2(y, x) * (180 / Math.PI)
     if (angle < 0) angle += 360
 
-    if (angle >= 315 || angle < 45) {
-      command = 'right'
-      turn = magnitude
-    } else if (angle >= 45 && angle < 135) {
-      command = 'forward'
+    // Direcciones invertidas
+    if (angle >= 45 && angle < 135) {
+      command = 'backward'  // ← antes era 'forward'
+      speed = magnitude
+    } else if (angle >= 225 && angle < 315) {
+      command = 'forward'  // ← antes era 'backward'
       speed = magnitude
     } else if (angle >= 135 && angle < 225) {
       command = 'left'
-      turn = magnitude
-    } else if (angle >= 225 && angle < 315) {
-      command = 'backward'
-      speed = magnitude
+    } else if (angle >= 315 || angle < 45) {
+      command = 'right'
     }
   }
 
-  if (command !== joystickCommand.value || magnitude > joystickThreshold) {
+  const newSpeed = Math.round(speed * 100)
+
+  if (command !== joystickCommand.value || newSpeed !== joystickCommand.speed) {
     joystickCommand.value = command
+    joystickCommand.speed = newSpeed
 
-    sendCommand(command, { 
-      speed: Math.round(speed * 100), 
-      turn: Math.round(turn * 100)
-    })
-
-    if (command !== 'stop') {
-      joystickTimer.value = setTimeout(() => {
-        sendCommand('stop')
-        joystickCommand.value = 'stop'
-      }, 200)
-    }
+    sendCommand(command, { speed: newSpeed })
   }
 }
 
-const handleCameraError = () => {
-  console.warn('Error cargando stream de cámara')
-  cameraErrorMessage.value = 'No se pudo cargar la cámara'
+// Función para formatear tiempo
+const formatTime = (date) => {
+  return date.toLocaleTimeString()
 }
+
+// Lifecycle hooks
+onMounted(() => {
+  connectWebSocket()
+})
+
+onUnmounted(() => {
+  if (websocket) {
+    websocket.close()
+  }
+  
+  // Limpiar URLs de blob para evitar memory leaks
+  if (cameraImageSrc.value && cameraImageSrc.value.startsWith('blob:')) {
+    URL.revokeObjectURL(cameraImageSrc.value)
+  }
+})
 
 </script>
