@@ -56,16 +56,22 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             data = await websocket.receive_json()
             if data["type"] == "command":
-                # Cliente Vue envía comando
+                # Cliente Vue envía comando con tipo y valor (y ahora también velocidad)
                 async with action_lock:
                     global current_action
                     current_action = data["value"]
 
-                logger.info(f"Comando recibido: {current_action}")
+                    # Si viene velocidad, la usamos; si no, usamos un valor por defecto
+                    velocidad = data.get("speed", 255)  # máximo por defecto
+
+                logger.info(f"Comando recibido: {current_action} con velocidad {velocidad}")
+
+                # Enviar comando a todos los ESP32 conectados
                 for client in clients_esp32:
                     await client.send_json({
                         "type": "action",
-                        "value": current_action
+                        "value": current_action,
+                        "speed": velocidad
                     })
 
             elif data["type"] == "image":

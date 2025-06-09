@@ -5,7 +5,8 @@
 
 WebSocketsClient webSocket;
 
-const size_t CAPACITY = JSON_OBJECT_SIZE(2) + 30; // 2 for "type" and "value", +30 for string overhead
+const size_t CAPACITY = JSON_OBJECT_SIZE(3) + 30;  // "type", "value", "speed"
+
 
 const char* ssid = "autoicc";
 const char* password = "autitos1";
@@ -63,8 +64,9 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       if (msgType && String(msgType) == "action") {
         // Get the "value" field (the actual action command)
         const char* actionValue = doc["value"];
+        int velocidad = map(doc["speed"] | 255, 0, 100, 100, 255);
         if (actionValue) {
-          executeAction(String(actionValue)); // Pass the extracted action value
+          executeAction(String(actionValue), velocidad); // Pass the extracted action value
         } else {
           //Serial.println("Error: 'value' no encontrado en el mensaje de acción.");
         }
@@ -141,11 +143,11 @@ void sendCameraImage() {
   esp_camera_fb_return(fb);
 }
 
-void executeAction(String action) {
-  if (action == "forward") handleForward();
-  else if (action == "backward") handleBackward();
-  else if (action == "left") handleLeft();
-  else if (action == "right") handleRight();
+void executeAction(String action, int velocidad) {
+  if (action == "forward") handleForward(velocidad);
+  else if (action == "backward") handleBackward(velocidad);
+  else if (action == "left") handleLeft(velocidad);
+  else if (action == "right") handleRight(velocidad);
   else if (action == "stop") handleStop();
   else if (action == "flash_on") handleFlashOn();
   else if (action == "flash_off") handleFlashOff();
@@ -163,36 +165,36 @@ void configureMotorPins() {
   digitalWrite(FLASH_PIN, LOW);
 }
 
-void handleForward() {
+void handleForward(int velocidad) {
   digitalWrite(IN1, HIGH);
   digitalWrite(IN2, LOW);
   digitalWrite(IN3, HIGH);
   digitalWrite(IN4, LOW);
-  analogWrite(ENAS, 255);
+  analogWrite(ENAS, velocidad);
 }
 
-void handleBackward() {
+void handleBackward(int velocidad) {
   digitalWrite(IN1, LOW);
   digitalWrite(IN2, HIGH);
   digitalWrite(IN3, LOW);
   digitalWrite(IN4, HIGH);
-  analogWrite(ENAS, 255);
+  analogWrite(ENAS, velocidad);
 }
 
-void handleLeft() {
+void handleLeft(int velocidad) {
   digitalWrite(IN1, HIGH);
   digitalWrite(IN2, LOW);
   digitalWrite(IN3, LOW);
   digitalWrite(IN4, HIGH);
-  analogWrite(ENAS, 255);
+  analogWrite(ENAS, 120);
 }
 
-void handleRight() {
+void handleRight(int velocidad) {
   digitalWrite(IN1, LOW);
   digitalWrite(IN2, HIGH);
   digitalWrite(IN3, HIGH);
   digitalWrite(IN4, LOW);
-  analogWrite(ENAS, 255);
+  analogWrite(ENAS, 120);
 }
 
 void handleStop() {

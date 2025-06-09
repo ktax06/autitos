@@ -189,51 +189,52 @@ const joystickTimer = ref(null)
 
 const handleJoystickMove = (position) => {
   if (!isConnected.value) return
-  
-  if (joystickTimer.value) clearTimeout(joystickTimer.value)
 
   const { x, y } = position
   let command = 'stop'
   let speed = 0
-  let turn = 0
-
   const magnitude = Math.sqrt(x * x + y * y)
+
+  if (!window.centerStopInterval) window.centerStopInterval = null
 
   if (magnitude < joystickThreshold) {
     command = 'stop'
+
+    if (!window.centerStopInterval) {
+      window.centerStopInterval = setInterval(() => {
+        sendCommand('stop')
+      }, 100)
+    }
   } else {
+    if (window.centerStopInterval) {
+      clearInterval(window.centerStopInterval)
+      window.centerStopInterval = null
+    }
+
     let angle = Math.atan2(y, x) * (180 / Math.PI)
     if (angle < 0) angle += 360
 
-    if (angle >= 315 || angle < 45) {
-      command = 'right'
-      turn = magnitude
-    } else if (angle >= 45 && angle < 135) {
-      command = 'forward'
+    // Direcciones invertidas
+    if (angle >= 45 && angle < 135) {
+      command = 'backward'  // ← antes era 'forward'
+      speed = magnitude
+    } else if (angle >= 225 && angle < 315) {
+      command = 'forward'  // ← antes era 'backward'
       speed = magnitude
     } else if (angle >= 135 && angle < 225) {
       command = 'left'
-      turn = magnitude
-    } else if (angle >= 225 && angle < 315) {
-      command = 'backward'
-      speed = magnitude
+    } else if (angle >= 315 || angle < 45) {
+      command = 'right'
     }
   }
 
-  if (command !== joystickCommand.value || magnitude > joystickThreshold) {
+  const newSpeed = Math.round(speed * 100)
+
+  if (command !== joystickCommand.value || newSpeed !== joystickCommand.speed) {
     joystickCommand.value = command
+    joystickCommand.speed = newSpeed
 
-    sendCommand(command, { 
-      speed: Math.round(speed * 100), 
-      turn: Math.round(turn * 100)
-    })
-
-    if (command !== 'stop') {
-      joystickTimer.value = setTimeout(() => {
-        sendCommand('stop')
-        joystickCommand.value = 'stop'
-      }, 200)
-    }
+    sendCommand(command, { speed: newSpeed })
   }
 }
 
