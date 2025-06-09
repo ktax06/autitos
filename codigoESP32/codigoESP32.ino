@@ -1,9 +1,7 @@
 #include <WiFi.h>
-#include <ArduinoJson.h> // Librería para manejo de JSON
-#include <WebServer.h>
-#include <WebSocketsServer.h>
+#include <HTTPClient.h>
+#include <WiFiClientSecure.h>  
 #include "esp_camera.h"
-#include "esp_http_server.h"
 
 const char* ssid = "autoicc";
 const char* password = "autitos1";
@@ -26,7 +24,7 @@ unsigned long lastImageUpload = 0;
 const unsigned long actionInterval = 200;   // Chequear acción cada 200ms
 const unsigned long imageInterval = 500;   // Enviar imagen cada 1s
 
-// Configuración de la cámara para ESP32-CAM AI Thinker
+// Pines cámara
 #define PWDN_GPIO_NUM     32
 #define RESET_GPIO_NUM    -1
 #define XCLK_GPIO_NUM      0
@@ -242,8 +240,7 @@ bool initCamera() {
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
-  
-  // Calidad y resolución iniciales
+
   if (psramFound()) {
     config.frame_size = FRAMESIZE_QVGA;
     config.jpeg_quality = 12;
@@ -253,14 +250,12 @@ bool initCamera() {
     config.jpeg_quality = 12;
     config.fb_count = 1;
   }
-  
-  // Inicializar la cámara
+
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
     //Serial.printf("Error al inicializar cámara: 0x%x\n", err);
     return false;
   }
-  
   return true;
 }
 
@@ -270,7 +265,7 @@ bool sendCameraImage(const char* serverUrl) {
     //Serial.println("Error obteniendo frame de cámara");
     return false;
   }
-  
+
   if (WiFi.status() != WL_CONNECTED) {
     //Serial.println("WiFi no conectado");
     esp_camera_fb_return(fb);
