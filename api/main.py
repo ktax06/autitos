@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse
 from pydantic import BaseModel
@@ -7,6 +7,8 @@ import asyncio
 import time
 from datetime import datetime
 import logging
+
+connected_clients = []
 
 # Configurar logging
 logging.basicConfig(
@@ -42,6 +44,25 @@ latest_image: Optional[bytes] = None
 image_lock = asyncio.Lock()
 last_image_time = 0
 
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    connected_clients.append(websocket)
+    logger.info("Cliente WebSocket conectado")
+
+    try:
+        while True:
+            data = await websocket.receive_text()
+            logger.info(f"Mensaje recibido por WebSocket: {data}")
+
+            # Opcional: responder al cliente
+            await websocket.send_text(f"Echo: {data}")
+    except WebSocketDisconnect:
+        logger.info("Cliente WebSocket desconectado")
+        connected_clients.remove(websocket)
+
+        
 @app.get("/")
 async def root():
     """Endpoint de prueba"""
