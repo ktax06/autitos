@@ -42,7 +42,7 @@ const unsigned long imageInterval = 100; // ms
 void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
   switch (type) {
     case WStype_TEXT: {
-      // Serial.printf("Texto recibido por WebSocket: %s\n", (char*)payload);
+      Serial.printf("Texto recibido por WebSocket: %s\n", (char*)payload);
 
       // Create a StaticJsonDocument
       StaticJsonDocument<CAPACITY> doc;
@@ -202,10 +202,12 @@ void handleStop() {
 }
 
 void handleFlashOn() {
+  Serial.println("Flash ON");
   digitalWrite(FLASH_PIN, HIGH);
 }
 
 void handleFlashOff() {
+  Serial.println("Flash OFF");
   digitalWrite(FLASH_PIN, LOW);
 }
 
@@ -235,7 +237,7 @@ bool initCamera() {
 
   if (psramFound()) {
     config.frame_size = FRAMESIZE_QVGA;
-    config.jpeg_quality = 10;
+    config.jpeg_quality = 12;
     config.fb_count = 2;
   } else {
     config.frame_size = FRAMESIZE_SVGA;

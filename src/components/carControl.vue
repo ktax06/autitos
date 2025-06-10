@@ -16,7 +16,10 @@
 
         <!-- Joystick -->
         <div class="w-60 h-60 flex justify-center items-center">
-          <JoystickComponent @move="handleJoystickMove" :disabled="!isConnected" />
+          <JoystickComponent 
+            @move="handleJoystickMove"
+            @end="handleJoystickEnd"
+            :disabled="!isConnected" />
         </div>
 
         <!-- Estado del servidor -->
@@ -76,6 +79,9 @@ const isConnected = ref(false)
 let websocket = null
 const WS_URL = 'https://api-autito.arturoalvarez.website/ws'  // Cambia a ws:// si no usas HTTPS
 
+const lastCommandTime = ref(0)
+const MIN_COMMAND_INTERVAL = 100  // milisegundos
+
 // Función para conectar WebSocket
 const connectWebSocket = () => {
   if (websocket && websocket.readyState === WebSocket.OPEN) {
@@ -118,8 +124,6 @@ const connectWebSocket = () => {
           cameraImageSrc.value = imageUrl
           lastImageTime.value = new Date()
           cameraErrorMessage.value = ''
-          
-          console.log('Nueva imagen recibida')
         }
       }
     }
@@ -154,6 +158,12 @@ const connectWebSocket = () => {
 
 // Función para enviar comandos
 const sendCommand = (command, params = {}) => {
+  const now = Date.now()
+  if (now - lastCommandTime.value < MIN_COMMAND_INTERVAL && command !== 'stop') {
+    console.warn('Comando ignorado por intervalo mínimo')
+    return
+  }
+
   if (!websocket || websocket.readyState !== WebSocket.OPEN) {
     console.error('WebSocket no está conectado')
     serverStatus.value = 'Sin conexión - comando no enviado'
@@ -168,6 +178,7 @@ const sendCommand = (command, params = {}) => {
 
   try {
     websocket.send(JSON.stringify(commandData))
+    lastCommandTime.value = now
     serverStatus.value = `Comando enviado: ${command}`
     console.log('Comando enviado:', commandData)
   } catch (error) {
@@ -186,6 +197,8 @@ const toggleFlash = () => {
 const joystickThreshold = 0.15
 const joystickCommand = ref('stop')
 const joystickTimer = ref(null)
+const lastJoystickCommand = ref('stop')
+
 
 const handleJoystickMove = (position) => {
   if (!isConnected.value) return
@@ -195,47 +208,51 @@ const handleJoystickMove = (position) => {
   let speed = 0
   const magnitude = Math.sqrt(x * x + y * y)
 
-  if (!window.centerStopInterval) window.centerStopInterval = null
-
+  // Si la magnitud es muy pequeña o cero, forzar stop
   if (magnitude < joystickThreshold) {
     command = 'stop'
-
-    if (!window.centerStopInterval) {
-      window.centerStopInterval = setInterval(() => {
-        sendCommand('stop')
-      }, 100)
+    joystickCommand.value = command
+    
+    // Solo enviar stop si el último comando no fue stop
+    if (lastJoystickCommand.value !== 'stop') {
+      sendCommand(command)
+      lastJoystickCommand.value = command
     }
-  } else {
-    if (window.centerStopInterval) {
-      clearInterval(window.centerStopInterval)
-      window.centerStopInterval = null
-    }
+    return
+  }
 
-    let angle = Math.atan2(y, x) * (180 / Math.PI)
-    if (angle < 0) angle += 360
+  let angle = Math.atan2(y, x) * (180 / Math.PI)
+  if (angle < 0) angle += 360
 
-    // Direcciones invertidas
-    if (angle >= 45 && angle < 135) {
-      command = 'backward'  // ← antes era 'forward'
-      speed = magnitude
-    } else if (angle >= 225 && angle < 315) {
-      command = 'forward'  // ← antes era 'backward'
-      speed = magnitude
-    } else if (angle >= 135 && angle < 225) {
-      command = 'left'
-    } else if (angle >= 315 || angle < 45) {
-      command = 'right'
-    }
+  // Direcciones invertidas
+  if (angle >= 45 && angle < 135) {
+    command = 'backward'
+    speed = magnitude
+  } else if (angle >= 225 && angle < 315) {
+    command = 'forward'
+    speed = magnitude
+  } else if (angle >= 135 && angle < 225) {
+    command = 'left'
+    speed = magnitude
+  } else if (angle >= 315 || angle < 45) {
+    command = 'right'
+    speed = magnitude
   }
 
   const newSpeed = Math.round(speed * 100)
+  joystickCommand.value = command
+  joystickCommand.speed = newSpeed
 
-  if (command !== joystickCommand.value || newSpeed !== joystickCommand.speed) {
-    joystickCommand.value = command
-    joystickCommand.speed = newSpeed
+  sendCommand(command, { speed: newSpeed })
+  lastJoystickCommand.value = command
+}
 
-    sendCommand(command, { speed: newSpeed })
-  }
+const handleJoystickEnd = () => {
+  if (!isConnected.value) return
+
+  console.log('Joystick ended, sending stop command')
+  sendCommand('stop', { speed: 0 })
+  lastJoystickCommand.value = 'stop'
 }
 
 // Función para formatear tiempo

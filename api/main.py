@@ -67,12 +67,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 logger.info(f"Comando recibido: {current_action} con velocidad {velocidad}")
 
                 # Enviar comando a todos los ESP32 conectados
-                for client in clients_esp32:
-                    await client.send_json({
-                        "type": "action",
-                        "value": current_action,
-                        "speed": velocidad
-                    })
+                for client in clients_esp32[:]:  # [:] para hacer una copia y evitar modificar mientras iteras
+                    try:
+                        await client.send_json({
+                            "type": "action",
+                            "value": current_action,
+                            "speed": velocidad
+                        })
+                    except Exception as e:
+                        logger.warning(f"ESP32 desconectado, eliminando de la lista. Error: {e}")
+                        clients_esp32.remove(client)
 
             elif data["type"] == "image":
                 # ESP32 envía imagen en base64 o bytes (recomendada: bytes con .receive_bytes())
@@ -82,7 +86,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     latest_image = image_bytes
                     last_image_time = time.time()
 
-                logger.info(f"Imagen recibida ({len(image_bytes)} bytes)")
+                # logger.info(f"Imagen recibida ({len(image_bytes)} bytes)")
 
                 for vue in clients_vue:
                     try:

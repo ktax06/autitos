@@ -45,7 +45,7 @@
 <script setup>
 import { ref, reactive, onMounted, onUnmounted } from 'vue';
 
-const emit = defineEmits(['move']);
+const emit = defineEmits(['move', 'end']);
 
 const joystickContainer = ref(null);
 const joystickHandle = ref(null);
@@ -151,6 +151,9 @@ const stopDrag = () => {
   
   // Emitir posición centrada
   emit('move', { x: 0, y: 0, angle: 0 });
+
+  // Emitir evento de "end" indicando que el joystick fue liberado
+  emit('end');
 };
 </script>
 
