@@ -1,11 +1,12 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, FileResponse
 from datetime import datetime
 from typing import Optional
 import asyncio
 import time
 import logging
+import os
 
 # Logging
 logging.basicConfig(
@@ -25,6 +26,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Estado compartido
 clients_vue = []
@@ -126,6 +129,16 @@ async def root():
         "status": "running",
         "timestamp": datetime.now().isoformat()
     }
+
+@app.get("/descargar/codigo", response_class=FileResponse)
+async def descargar_codigo():
+    filepath = os.path.join(BASE_DIR, "codigoESP32.ino")
+    return FileResponse(filepath, filename="codigoESP32.ino", media_type="text/plain")
+
+@app.get("/descargar/diagrama", response_class=FileResponse)
+async def descargar_diagrama():
+    filepath = os.path.join(BASE_DIR,"diagrama_de_conexion.png")
+    return FileResponse(filepath, filename="diagrama_de_conexion.png", media_type="image/png")
 
 @app.get("/status")
 async def get_status():

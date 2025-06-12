@@ -1,11 +1,21 @@
 <template>
-  <div class="min-h-screen flex flex-col items-center bg-gray-100 p-4 space-y-4">
-    <h1 class="text-2xl font-bold text-center text-black">Proyecto autito ICC</h1>
+  <div class="min-h-screen flex flex-col items-center bg-gray-100 p-4 space-y-4 relative">
+    <!-- Título y botón de ayuda -->
+    <div class="flex justify-between items-center w-full max-w-6xl">
+      <h1 class="text-2xl font-bold text-black text-center w-full">Proyecto autito ICC</h1>
+      <button
+        @click="showHelp = true"
+        class="w-10 h-10 flex items-center justify-center bg-blue-500 text-white text-lg font-bold rounded-full shadow-md hover:bg-blue-600"
+        title="Ayuda e instrucciones"
+        >
+          ?
+      </button>
+    </div>
 
+    <!-- CONTENIDO PRINCIPAL -->
     <div class="flex flex-col-reverse md:flex-row w-full max-w-6xl gap-6 mt-4 items-center md:items-start">
       <!-- CONTROLES -->
       <div class="flex flex-col items-center md:w-1/3 space-y-8 p-4 md:p-6">
-        <!-- Botón Flash -->
         <button
           @click="toggleFlash"
           class="w-48 px-6 py-3 bg-yellow-400 hover:bg-yellow-500 active:scale-95 text-white font-semibold rounded-2xl shadow-md transition duration-150"
@@ -40,7 +50,6 @@
 
       <!-- VISTA DE CÁMARA -->
       <div class="w-full md:flex-1">
-        <!-- Vista de cámara -->
         <div class="aspect-4/3 bg-black rounded-2xl overflow-hidden shadow-lg w-full">
           <img 
             v-if="cameraImageSrc" 
@@ -53,15 +62,68 @@
             {{ cameraErrorMessage || 'Esperando imagen de la cámara...' }}
           </div>
         </div>
-        
-        <!-- Información de imagen -->
         <div class="text-center mt-2 text-xs text-gray-500">
           {{ lastImageTime ? `Última imagen: ${formatTime(lastImageTime)}` : 'Sin imagen' }}
         </div>
       </div>
     </div>
+
+    <!-- MODAL DE AYUDA -->
+    <div v-if="showHelp" class="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+      <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 relative">
+        <h2 class="text-xl font-semibold mb-4 text-black text-center">Instrucciones de uso</h2>
+        <ul class="list-disc list-inside text-sm text-gray-700 space-y-2">
+          <li>Debes crear una Zona WiFi con el nombre <strong>autoicc</strong> y la contraseña <strong>autitos1</strong>.</li>
+          <li>Enciende el autito y espera a que se conecte al WiFi.</li>
+          <li>Ya puedes usar la aplicación para controlar el autito.</li>
+        </ul>
+
+        <div class="mt-6 flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0 sm:space-x-2">
+          <a 
+            :href="arduinoCodeUrl" 
+            download="autito_icc.ino" 
+            class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm text-center"
+          >
+            Descargar código .ino
+          </a>
+          <button 
+            @click="showDiagram = true" 
+            class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg text-sm"
+          >
+            Ver diagrama de conexión
+          </button>
+          <button 
+            @click="showHelp = false" 
+            class="text-gray-500 hover:text-black text-sm mt-2 sm:mt-0"
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL DE DIAGRAMA -->
+    <div v-if="showDiagram" class="fixed inset-0 z-50 bg-black bg-opacity-60 flex items-center justify-center">
+      <div class="bg-white rounded-xl shadow-xl max-w-3xl w-full p-4 relative">
+        <h2 class="text-lg font-semibold text-center mb-4">Diagrama de conexión del autito</h2>
+        <img 
+          :src="diagramImageUrl" 
+          alt="Diagrama de conexión" 
+          class="w-full rounded-lg border border-gray-200 shadow-sm"
+        />
+        <div class="mt-4 text-center">
+          <button 
+            @click="showDiagram = false" 
+            class="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded text-sm"
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
+
 
 <script setup>
 import JoystickComponent from './joystickComponent.vue'
@@ -74,6 +136,10 @@ const cameraErrorMessage = ref('')
 const cameraImageSrc = ref('')
 const lastImageTime = ref(null)
 const isConnected = ref(false)
+const showHelp = ref(false)
+const showDiagram = ref(false)
+const arduinoCodeUrl = 'https://api-autito.arturoalvarez.website/descargar/codigo'
+const diagramImageUrl = 'https://api-autito.arturoalvarez.website/descargar/diagrama'
 
 // WebSocket
 let websocket = null
