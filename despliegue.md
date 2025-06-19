@@ -1,5 +1,36 @@
 # Documentación de despliegue
 
+## Clonar repositorio
+
+```bash
+git clone https://github.com/ktax06/autitos.git
+cd autitos
+```
+
+## Construir imágenes
+
+Cambia las siguientes URLs en el archivo `app/src/components/carControl.vue` por las URLs de tu servidor:
+
+```javascript
+const arduinoCodeUrl = 'https://api-autito.tu-dominio.com/descargar/codigo'
+const diagramImageUrl = 'https://api-autito.tu-dominio.com/descargar/diagrama'
+const WS_URL = 'https://api-autito.tu-dominio.com/ws'
+```
+
+```bash
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  -t tu-cuenta-de-docker/app-autitos:latest \
+  --push .
+
+cd api
+
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  -t tu-cuenta-de-docker/api-autitos:latest \
+  --push .
+```
+
 ## Desplegar en la maquina
 
 ### Crear docker-compose.yml
@@ -23,6 +54,11 @@ services:
     networks:
       - autitos
     restart: unless-stopped
+  
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
 networks:
   autitos:

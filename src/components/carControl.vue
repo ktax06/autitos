@@ -143,10 +143,10 @@ const diagramImageUrl = 'https://api-autito.arturoalvarez.website/descargar/diag
 
 // WebSocket
 let websocket = null
-const WS_URL = 'https://api-autito.arturoalvarez.website/ws'  // Cambia a ws:// si no usas HTTPS
+const WS_URL = 'https://api-autito.arturoalvarez.website/ws'
 
 const lastCommandTime = ref(0)
-const MIN_COMMAND_INTERVAL = 100  // milisegundos
+const MIN_COMMAND_INTERVAL = 150  // milisegundos
 
 // Función para conectar WebSocket
 const connectWebSocket = () => {

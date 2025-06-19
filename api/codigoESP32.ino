@@ -5,14 +5,14 @@
 
 WebSocketsClient webSocket;
 
-const size_t CAPACITY = JSON_OBJECT_SIZE(3) + 30;  // "type", "value", "speed"
+const size_t CAPACITY = JSON_OBJECT_SIZE(3) + 30;
 
 
 const char* ssid = "autoicc";
 const char* password = "autitos1";
 
 unsigned long lastImageSent = 0;
-const unsigned long imageInterval = 100; // ms
+const unsigned long imageInterval = 200; // ms
 
 #define ENAS 2
 #define IN1 12
@@ -21,7 +21,6 @@ const unsigned long imageInterval = 100; // ms
 #define IN4 14 
 #define FLASH_PIN 4
 
-// Pines cámara
 #define PWDN_GPIO_NUM     32
 #define RESET_GPIO_NUM    -1
 #define XCLK_GPIO_NUM      0
@@ -44,46 +43,31 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
     case WStype_TEXT: {
       Serial.printf("Texto recibido por WebSocket: %s\n", (char*)payload);
 
-      // Create a StaticJsonDocument
       StaticJsonDocument<CAPACITY> doc;
 
-      // Deserialize the JSON payload
       DeserializationError error = deserializeJson(doc, (char*)payload);
 
-      // Check for parsing errors
       if (error) {
-        //Serial.print(F("Error al parsear JSON: "));
-        //Serial.println(error.c_str());
         return;
       }
 
-      // Get the "type" field
       const char* msgType = doc["type"];
 
-      // Check if it's an "action" type message
       if (msgType && String(msgType) == "action") {
-        // Get the "value" field (the actual action command)
         const char* actionValue = doc["value"];
         int velocidad = map(doc["speed"] | 255, 0, 100, 100, 255);
         if (actionValue) {
-          executeAction(String(actionValue), velocidad); // Pass the extracted action value
-        } else {
-          //Serial.println("Error: 'value' no encontrado en el mensaje de acción.");
+          executeAction(String(actionValue), velocidad);
         }
-      } else {
-        //Serial.println("Tipo de mensaje desconocido o no es una acción.");
       }
       break;
     }
     case WStype_DISCONNECTED:
-      //Serial.println("WebSocket desconectado");
       break;
     case WStype_CONNECTED:
-      //Serial.println("WebSocket conectado");
       webSocket.sendTXT("{\"role\":\"esp32\"}");
       break;
     case WStype_BIN:
-      //Serial.println("Binario recibido (ignorado)");
       break;
     default:
       break;
@@ -96,30 +80,29 @@ void setup() {
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
-    //Serial.println("Conectando a WiFi...");
   }
-  //Serial.println("Conectado, IP: " + WiFi.localIP().toString());
+  WiFi.setSleep(false);
 
   if (!initCamera()) {
-    //Serial.println("Error al inicializar cámara");
   }
 
   configureMotorPins();
 
-  // Conexión WebSocket
-  webSocket.begin("api-autito.arturoalvarez.website", 80, "/ws");
+  webSocket.begin("api-autito.tu-dominio.com", 80, "/ws"); // Cambia a tu URL de WebSocket
   webSocket.onEvent(webSocketEvent);
-  webSocket.setReconnectInterval(5000);  // reconexión cada 5s
+  webSocket.setReconnectInterval(5000);
   handleFlashOn();
+  delay(500);
   handleFlashOff();
+  delay(500);
   handleFlashOn();
+  delay(500);
   handleFlashOff();
 }
 
 void loop() {
   webSocket.loop();
 
-  // Enviar imagen cada cierto tiempo
   unsigned long now = millis();
   if (now - lastImageSent > imageInterval && webSocket.isConnected()) {
     sendCameraImage();
@@ -130,20 +113,12 @@ void loop() {
 void sendCameraImage() {
   camera_fb_t * fb = esp_camera_fb_get();
   if (!fb) {
-    //Serial.println("Error al capturar imagen");
     return;
   }
 
-  // Send image header as JSON
   webSocket.sendTXT("{\"type\":\"image\"}");
-  
-  // Small delay to ensure message order
   delay(10);
-  
-  // Send image as binary data
   webSocket.sendBIN(fb->buf, fb->len);
-
-  //Serial.printf("Imagen enviada: %u bytes\n", fb->len);
   esp_camera_fb_return(fb);
 }
 
@@ -155,7 +130,6 @@ void executeAction(String action, int velocidad) {
   else if (action == "stop") handleStop();
   else if (action == "flash_on") handleFlashOn();
   else if (action == "flash_off") handleFlashOff();
-  //else Serial.println("Acción desconocida: " + action);
 }
 
 void configureMotorPins() {
@@ -206,16 +180,13 @@ void handleStop() {
 }
 
 void handleFlashOn() {
-  Serial.println("Flash ON");
   digitalWrite(FLASH_PIN, HIGH);
 }
 
 void handleFlashOff() {
-  Serial.println("Flash OFF");
   digitalWrite(FLASH_PIN, LOW);
 }
 
-// Inicializa la cámara
 bool initCamera() {
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
