@@ -63,11 +63,6 @@ Thumbs.db
 .git
 .gitignore
 
-# Docker
-Dockerfile*
-docker-compose*
-.dockerignore
-
 # Build output (will be generated during build)
 dist/
 
